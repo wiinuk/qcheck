@@ -327,7 +327,7 @@ export interface ForwardDeclarationChecker<T> extends Checker<T> {
 }
 
 function throwNotInitialized(): never {
-    throw new Error("not initialized") 
+    throw new Error("definition not assigned")
 }
 class ForwardDeclarationCheckerImpl<T> implements ForwardDeclarationChecker<T> {
     get definition(): Checker<T> { return this }
@@ -339,8 +339,8 @@ class ForwardDeclarationCheckerImpl<T> implements ForwardDeclarationChecker<T> {
     array1() { return throwNotInitialized() }
     readonlyArray1() { return throwNotInitialized() }
     sample() { return throwNotInitialized() }
-    map<U extends T>(convertTo: (value: T) => U, convertFrom?: ((value: U) => T)): Arbitrary<U>;
-    map<U>(convertTo: (value: T) => U, convertFrom: (value: U) => T): Arbitrary<U>;
+    map<U extends T>(convertTo: (value: T) => U, convertFrom?: ((value: U) => T)): Checker<U>;
+    map<U>(convertTo: (value: T) => U, convertFrom: (value: U) => T): Checker<U>;
     map() { return throwNotInitialized() }
     filter() { return throwNotInitialized() }
     nullable<A extends {} | undefined>(this: ForwardDeclarationChecker<A>): Checker<Nullable<A>> { return throwNotInitialized() }
