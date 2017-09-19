@@ -16,6 +16,9 @@ export interface ArbitraryCore<T> {
     generate(random: Random, size: Int32): T
     shrink(value: T): Iterable<T>
 }
+export interface ArrayArbitraryOptions<Min extends number> {
+    readonly min: Min
+}
 export interface Arbitrary<T> extends ArbitraryCore<T> {
     sample(options?: SampleOptions): T[]
 
@@ -26,12 +29,13 @@ export interface Arbitrary<T> extends ArbitraryCore<T> {
     nullable<A extends {} | undefined>(this: Arbitrary<A>): Arbitrary<Nullable<A>>
     optional<A extends {} | null>(this: Arbitrary<A>): Arbitrary<Optional<A>>
 
-    array(): Arbitrary<T[]>
-    readonlyArray(): Arbitrary<ReadonlyArray<T>>
-    array1(): Arbitrary<Array1<T>>
-    readonlyArray1(): Arbitrary<ReadonlyArray1<T>>
-    array2(): Arbitrary<Array2<T>>
-    readonlyArray2(): Arbitrary<ReadonlyArray2<T>>
+    array(option: ArrayArbitraryOptions<1>): Arbitrary<Array1<T>>
+    array(option: ArrayArbitraryOptions<2>): Arbitrary<Array2<T>>
+    array(option?: Partial<ArrayArbitraryOptions<number>>): Arbitrary<T[]>
+
+    readonlyArray(option: ArrayArbitraryOptions<1>): Arbitrary<ReadonlyArray1<T>>
+    readonlyArray(option: ArrayArbitraryOptions<2>): Arbitrary<ReadonlyArray2<T>>
+    readonlyArray(option?: Partial<ArrayArbitraryOptions<number>>): Arbitrary<ReadonlyArray<T>>
 }
 
 export namespace Arbitrary {
@@ -62,12 +66,13 @@ export namespace Arbitrary {
         }
         filter(predicate: (value: T) => boolean) { return filter(this, predicate) }
 
-        array() { return array(this) }
-        readonlyArray() { return array(this) as Arbitrary<ReadonlyArray<T>> }
-        array1() { return array1(this) }
-        readonlyArray1() { return array1(this) as Arbitrary<ReadonlyArray1<T>> }
-        array2() { return array2(this) }
-        readonlyArray2() { return array2(this) as Arbitrary<ReadonlyArray2<T>> }
+        array(options: ArrayArbitraryOptions<1>): Arbitrary<Array1<T>>
+        array(options: ArrayArbitraryOptions<2>): Arbitrary<Array2<T>>
+        array(options?: Partial<ArrayArbitraryOptions<number>>): Arbitrary<T[]> { return array(this, options) }
+
+        readonlyArray(options: ArrayArbitraryOptions<1>): Arbitrary<ReadonlyArray1<T>>
+        readonlyArray(options: ArrayArbitraryOptions<2>): Arbitrary<ReadonlyArray2<T>>
+        readonlyArray(options?: Partial<ArrayArbitraryOptions<number>>): Arbitrary<ReadonlyArray<T>> { return array(this, options) as Arbitrary<ReadonlyArray<T>> }
     }
     export class Extend<T> extends ArbitraryDefaults<T> {
         constructor(private readonly _arbitrary: ArbitraryCore<T>) { super() }
@@ -219,7 +224,7 @@ export namespace Arbitrary {
         }
     })
 
-    class ArrayNArbitrary<T> extends ArbitraryDefaults<Array<T>> {
+    class ArrayMinMaxArbitrary<T> extends ArbitraryDefaults<Array<T>> {
         constructor(private readonly _arbitrary: ArbitraryCore<T>, private readonly _minLength: number) { super() }
         generate(r: Random, size: number) {
             let xs: T[] = []
@@ -256,15 +261,14 @@ export namespace Arbitrary {
             }
         }
     }
-    export function array<T>(arbitrary: ArbitraryCore<T>): Arbitrary<Array<T>> {
-        return new ArrayNArbitrary(arbitrary, 0)
+
+    export function array<T>(arbitrary: ArbitraryCore<T>, options: ArrayArbitraryOptions<1>): Arbitrary<Array1<T>>
+    export function array<T>(arbitrary: ArbitraryCore<T>, options: ArrayArbitraryOptions<2>): Arbitrary<Array2<T>>
+    export function array<T>(arbitrary: ArbitraryCore<T>, options?: Partial<ArrayArbitraryOptions<number>>): Arbitrary<Array<T>>
+    export function array<T>(arbitrary: ArbitraryCore<T>, { min = 0 }: Partial<ArrayArbitraryOptions<number>> = {}): Arbitrary<Array<T>> {
+        return new ArrayMinMaxArbitrary(arbitrary, min)
     }
-    export function array1<T>(arbitrary: ArbitraryCore<T>): Arbitrary<Array1<T>> {
-        return new ArrayNArbitrary(arbitrary, 1) as any as Arbitrary<Array1<T>>
-    }
-    export function array2<T>(arbitrary: ArbitraryCore<T>): Arbitrary<Array2<T>> {
-        return new ArrayNArbitrary(arbitrary, 2) as any as Arbitrary<Array2<T>>
-    }
+    
     const charArray = Arbitrary.array(Arbitrary.codePoint)
     export const string: Arbitrary<string> = extend({
         generate(r, size) { return String.fromCodePoint(...charArray.generate(r, size)) },
