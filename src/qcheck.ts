@@ -224,6 +224,8 @@ export interface Checker<T> extends Arbitrary<T>, Show<T> {
     readonlyArray(): Checker<ReadonlyArray<T>>
     array1(): Checker<Array1<T>>
     readonlyArray1(): Checker<ReadonlyArray1<T>>
+    array2(): Checker<Array2<T>>
+    readonlyArray2(): Checker<ReadonlyArray2<T>>
 
     map<U extends T>(convertTo: (value: T) => U, convertFrom?: (value: U) => T): Checker<U>
     map<U>(convertTo: (value: T) => U, convertFrom: (value: U) => T): Checker<U>
@@ -241,6 +243,8 @@ class FromArbitrary<T> extends Arbitrary.Extend<T> implements Checker<T> {
     readonlyArray(): Checker<ReadonlyArray<T>> { return array(this) as Checker<ReadonlyArray<T>> }
     array1(): Checker<Array1<T>> { return array1(this) }
     readonlyArray1(): Checker<ReadonlyArray1<T>> { return array1(this) as Checker<ReadonlyArray1<T>> }
+    array2(): Checker<Array2<T>> { return array2(this) }
+    readonlyArray2(): Checker<ReadonlyArray2<T>> { return array2(this) as Checker<ReadonlyArray2<T>> }
     
     map<U extends T>(convertTo: (value: T) => U, convertFrom?: (value: U) => T): Checker<U>
     map<U>(convertTo: (value: T) => U, convertFrom: (value: U) => T): Checker<U>
@@ -270,6 +274,7 @@ export const int32: Checker<Int32> = fromArbitrary(Arbitrary.int32)
 export const codePoint: Checker<CodePoint> = fromArbitrary(Arbitrary.codePoint)
 export function array<T>(arbitrary: ArbitraryCore<T>) { return fromArbitrary(Arbitrary.array(arbitrary)) }
 export function array1<T>(arbitrary: ArbitraryCore<T>) { return fromArbitrary(Arbitrary.array1(arbitrary)) }
+export function array2<T>(arbitrary: ArbitraryCore<T>) { return fromArbitrary(Arbitrary.array2(arbitrary)) }
 export const string = fromArbitrary(Arbitrary.string)
 export function interface_<T>(arbitraryMap: {[P in keyof T]: ArbitraryCore<T[P]> }) { return fromArbitrary(Arbitrary.interface_<T>(arbitraryMap)) }
 
@@ -334,10 +339,14 @@ class ForwardDeclarationCheckerImpl<T> implements ForwardDeclarationChecker<T> {
     set definition(x: Checker<T>) { Object.setPrototypeOf(this, x) }
     
     check() { return throwNotInitialized() }
+    
     array() { return throwNotInitialized() }
     readonlyArray() { return throwNotInitialized() }
     array1() { return throwNotInitialized() }
     readonlyArray1() { return throwNotInitialized() }
+    array2() { return throwNotInitialized() }
+    readonlyArray2() { return throwNotInitialized() }
+
     sample() { return throwNotInitialized() }
     map<U extends T>(convertTo: (value: T) => U, convertFrom?: ((value: U) => T)): Checker<U>;
     map<U>(convertTo: (value: T) => U, convertFrom: (value: U) => T): Checker<U>;

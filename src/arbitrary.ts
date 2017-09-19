@@ -1,4 +1,4 @@
-import { Int32, Nullable, Optional, Array1, ReadonlyArray1, primitive, CodePoint as C } from "wiinuk-extensions"
+import { Int32, Nullable, Optional, Array1, ReadonlyArray1, Array2, ReadonlyArray2, primitive, CodePoint as C } from "wiinuk-extensions"
 import * as ex from "wiinuk-extensions"
 import { Random } from "./random"
 
@@ -30,6 +30,8 @@ export interface Arbitrary<T> extends ArbitraryCore<T> {
     readonlyArray(): Arbitrary<ReadonlyArray<T>>
     array1(): Arbitrary<Array1<T>>
     readonlyArray1(): Arbitrary<ReadonlyArray1<T>>
+    array2(): Arbitrary<Array2<T>>
+    readonlyArray2(): Arbitrary<ReadonlyArray2<T>>
 }
 
 export namespace Arbitrary {
@@ -64,6 +66,8 @@ export namespace Arbitrary {
         readonlyArray() { return array(this) as Arbitrary<ReadonlyArray<T>> }
         array1() { return array1(this) }
         readonlyArray1() { return array1(this) as Arbitrary<ReadonlyArray1<T>> }
+        array2() { return array2(this) }
+        readonlyArray2() { return array2(this) as Arbitrary<ReadonlyArray2<T>> }
     }
     export class Extend<T> extends ArbitraryDefaults<T> {
         constructor(private readonly _arbitrary: ArbitraryCore<T>) { super() }
@@ -257,6 +261,9 @@ export namespace Arbitrary {
     }
     export function array1<T>(arbitrary: ArbitraryCore<T>): Arbitrary<Array1<T>> {
         return new ArrayNArbitrary(arbitrary, 1) as any as Arbitrary<Array1<T>>
+    }
+    export function array2<T>(arbitrary: ArbitraryCore<T>): Arbitrary<Array2<T>> {
+        return new ArrayNArbitrary(arbitrary, 2) as any as Arbitrary<Array2<T>>
     }
     const charArray = Arbitrary.array(Arbitrary.codePoint)
     export const string: Arbitrary<string> = extend({
