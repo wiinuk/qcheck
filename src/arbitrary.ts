@@ -1,4 +1,4 @@
-import { Int32, Nullable, Optional, Array1, ReadonlyArray1, Array2, ReadonlyArray2, primitive, CodePoint as C } from "wiinuk-extensions"
+import { Int32, Array1, Array2, primitive, CodePoint as C } from "wiinuk-extensions"
 import * as ex from "wiinuk-extensions"
 import { Random } from "./random"
 
@@ -16,65 +16,29 @@ export interface ArbitraryCore<T> {
     generate(random: Random, size: Int32): T
     shrink(value: T): Iterable<T>
 }
-export interface ArrayArbitraryOptions<Min extends number> {
-    readonly min: Min
-}
 export interface Arbitrary<T> extends ArbitraryCore<T> {
     sample(options?: SampleOptions): T[]
-
-    map<U extends T>(convertTo: (value: T) => U, convertFrom?: (value: U) => T): Arbitrary<U>
-    map<U>(convertTo: (value: T) => U, convertFrom: (value: U) => T): Arbitrary<U>
-    filter(predicate: (value: T) => boolean): Arbitrary<T>
-
-    nullable<A extends {} | undefined>(this: Arbitrary<A>): Arbitrary<Nullable<A>>
-    optional<A extends {} | null>(this: Arbitrary<A>): Arbitrary<Optional<A>>
-
-    array(option: ArrayArbitraryOptions<1>): Arbitrary<Array1<T>>
-    array(option: ArrayArbitraryOptions<2>): Arbitrary<Array2<T>>
-    array(option?: Partial<ArrayArbitraryOptions<number>>): Arbitrary<T[]>
-
-    readonlyArray(option: ArrayArbitraryOptions<1>): Arbitrary<ReadonlyArray1<T>>
-    readonlyArray(option: ArrayArbitraryOptions<2>): Arbitrary<ReadonlyArray2<T>>
-    readonlyArray(option?: Partial<ArrayArbitraryOptions<number>>): Arbitrary<ReadonlyArray<T>>
 }
 
 export namespace Arbitrary {
-    function nullable<T extends {} | undefined>(arbitrary: Arbitrary<T>) {
+    export function nullable<T extends {} | undefined>(arbitrary: Arbitrary<T>) {
         return sum(
             [pure(null), (x): x is null => x === null],
             [arbitrary, (x): x is T => x !== null],
         )
     }
-    function optional<T extends {} | null>(arbitrary: Arbitrary<T>) {
+    export function optional<T extends {} | null>(arbitrary: Arbitrary<T>) {
         return sum(
             [pure(void 0), (x): x is undefined => x === void 0],
             [arbitrary, (x): x is T => x !== void 0],
         )
     }
-    export abstract class ArbitraryDefaults<T> implements Arbitrary<T> {
+    abstract class ArbitraryDefaults<T> implements Arbitrary<T> {
         abstract generate(random: Random, size: Int32): T
         abstract shrink(value: T): Iterable<T>
-
-        nullable<A extends {} | undefined>(this: Arbitrary<A>) { return nullable(this) }
-        optional<A extends {} | null>(this: Arbitrary<A>) { return optional(this) }
         sample(options?: SampleOptions) { return sample(this, options) }
-
-        map<U extends T>(convertTo: (value: T) => U): Arbitrary<U>
-        map<U>(convertTo: (value: T) => U, convertFrom: (value: U) => T): Arbitrary<U>
-        map<U extends T>(convertTo: (value: T) => U, convertFrom: (value: U) => T = (x => x)) {
-            return map(this, convertTo, convertFrom)
-        }
-        filter(predicate: (value: T) => boolean) { return filter(this, predicate) }
-
-        array(options: ArrayArbitraryOptions<1>): Arbitrary<Array1<T>>
-        array(options: ArrayArbitraryOptions<2>): Arbitrary<Array2<T>>
-        array(options?: Partial<ArrayArbitraryOptions<number>>): Arbitrary<T[]> { return array(this, options) }
-
-        readonlyArray(options: ArrayArbitraryOptions<1>): Arbitrary<ReadonlyArray1<T>>
-        readonlyArray(options: ArrayArbitraryOptions<2>): Arbitrary<ReadonlyArray2<T>>
-        readonlyArray(options?: Partial<ArrayArbitraryOptions<number>>): Arbitrary<ReadonlyArray<T>> { return array(this, options) as Arbitrary<ReadonlyArray<T>> }
     }
-    export class Extend<T> extends ArbitraryDefaults<T> {
+    class Extend<T> extends ArbitraryDefaults<T> {
         constructor(private readonly _arbitrary: ArbitraryCore<T>) { super() }
         generate(random: Random, size: Int32) { return this._arbitrary.generate(random, size) }
         shrink(value: T) { return this._arbitrary.shrink(value) }
@@ -102,6 +66,9 @@ export namespace Arbitrary {
     export function map<T, U>(arbitrary: ArbitraryCore<T>, convertTo: (x: T) => U, convertFrom: (x: U) => T): Arbitrary<U> {
         return new Map(arbitrary, convertTo, convertFrom)
     }
+    export function mapExtend<T, U extends T>(arbitrary: ArbitraryCore<T>, convertTo: (x: T) => U): Arbitrary<U> {
+        return new Map(arbitrary, convertTo, x => x)
+    }
     class Filter<T> extends ArbitraryDefaults<T> {
         constructor(
             private readonly _arbitrary: ArbitraryCore<T>,
@@ -121,7 +88,7 @@ export namespace Arbitrary {
             }
         }
     }
-    function filter<T>(arbitrary: ArbitraryCore<T>, predicate: (value: T) => boolean): Arbitrary<T> {
+    export function filter<T>(arbitrary: ArbitraryCore<T>, predicate: (value: T) => boolean): Arbitrary<T> {
         return new Filter(arbitrary, predicate)
     }
 
@@ -262,12 +229,9 @@ export namespace Arbitrary {
         }
     }
 
-    export function array<T>(arbitrary: ArbitraryCore<T>, options: ArrayArbitraryOptions<1>): Arbitrary<Array1<T>>
-    export function array<T>(arbitrary: ArbitraryCore<T>, options: ArrayArbitraryOptions<2>): Arbitrary<Array2<T>>
-    export function array<T>(arbitrary: ArbitraryCore<T>, options?: Partial<ArrayArbitraryOptions<number>>): Arbitrary<Array<T>>
-    export function array<T>(arbitrary: ArbitraryCore<T>, { min = 0 }: Partial<ArrayArbitraryOptions<number>> = {}): Arbitrary<Array<T>> {
-        return new ArrayMinMaxArbitrary(arbitrary, min)
-    }
+    export function array1<T>(arbitrary: ArbitraryCore<T>) { return new ArrayMinMaxArbitrary(arbitrary, 1) as Arbitrary<any> as Arbitrary<Array1<T>> }
+    export function array2<T>(arbitrary: ArbitraryCore<T>) { return new ArrayMinMaxArbitrary(arbitrary, 2) as Arbitrary<any> as Arbitrary<Array2<T>> }
+    export function array<T>(arbitrary: ArbitraryCore<T>): Arbitrary<Array<T>> { return new ArrayMinMaxArbitrary(arbitrary, 0) }
     
     const charArray = Arbitrary.array(Arbitrary.codePoint)
     export const string: Arbitrary<string> = extend({
