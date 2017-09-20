@@ -1,6 +1,6 @@
 import { mixed, Nullable, Optional, Array1, Array2, ReadonlyArray1, ReadonlyArray2, primitive, Int32, CodePoint } from "wiinuk-extensions"
 import { seedOfNow, Random } from "./random"
-import { Is, ArbitraryCore, Arbitrary } from "./arbitrary"
+import { Is, ArbitraryCore, Arbitrary, SampleOptions } from "./arbitrary"
 
 export { Int32, CodePoint } from "wiinuk-extensions"
 export { Random } from "./random"
