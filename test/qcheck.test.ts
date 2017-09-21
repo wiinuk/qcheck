@@ -1,7 +1,7 @@
 import "mocha"
 import { assert } from "chai"
-import { Random, int32, Runner, Config, string, interface_ as object, Arbitrary, Int32, codePoint } from "../src/qcheck"
-import { String, CodePoint, Iterable } from "wiinuk-extensions"
+import { Random, int32, Runner, Config, string, interface_ as object, Arbitrary, codePoint } from "../src/qcheck"
+import { String, CodePoint, Iterable, Int32 } from "wiinuk-extensions"
 
 describe("Random", () => {
     it("nextUInt32", () => {
