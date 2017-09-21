@@ -12,6 +12,10 @@ export interface SampleOptions {
     seed?: number
 }
 
+export interface ArrayArbitraryOptions<Min extends number> {
+    readonly min: Min
+}
+
 export interface ArbitraryCore<T> {
     generate(random: Random, size: Int32): T
     shrink(value: T): Iterable<T>
@@ -229,9 +233,10 @@ export namespace Arbitrary {
         }
     }
 
-    export function array1<T>(arbitrary: ArbitraryCore<T>) { return new ArrayMinMaxArbitrary(arbitrary, 1) as Arbitrary<any> as Arbitrary<Array1<T>> }
-    export function array2<T>(arbitrary: ArbitraryCore<T>) { return new ArrayMinMaxArbitrary(arbitrary, 2) as Arbitrary<any> as Arbitrary<Array2<T>> }
-    export function array<T>(arbitrary: ArbitraryCore<T>): Arbitrary<Array<T>> { return new ArrayMinMaxArbitrary(arbitrary, 0) }
+    export function array<T>(arbitrary: ArbitraryCore<T>, options: ArrayArbitraryOptions<1>): Arbitrary<Array1<T>>
+    export function array<T>(arbitrary: ArbitraryCore<T>, options: ArrayArbitraryOptions<2>): Arbitrary<Array2<T>>
+    export function array<T>(arbitrary: ArbitraryCore<T>, options?: Partial<ArrayArbitraryOptions<number>>): Arbitrary<Array<T>>
+    export function array<T>(arbitrary: ArbitraryCore<T>, { min = 0 } = {}): Arbitrary<Array<T>> { return new ArrayMinMaxArbitrary(arbitrary, min) }
     
     const charArray = Arbitrary.array(Arbitrary.codePoint)
     export const string: Arbitrary<string> = extend({

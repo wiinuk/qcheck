@@ -1,10 +1,9 @@
 import { mixed, Nullable, Optional, Array1, Array2, ReadonlyArray1, ReadonlyArray2, primitive, Int32, CodePoint } from "wiinuk-extensions"
 import { seedOfNow, Random } from "./random"
-import { Is, ArbitraryCore, Arbitrary, SampleOptions } from "./arbitrary"
+import { Is, ArbitraryCore, Arbitrary, SampleOptions, ArrayArbitraryOptions } from "./arbitrary"
 
-export { Int32, CodePoint } from "wiinuk-extensions"
-export { Random } from "./random"
-export { Is, SampleOptions, ArbitraryCore, Arbitrary } from "./arbitrary"
+export * from "./random"
+export * from "./arbitrary"
 
 
 export interface Show<T> {
@@ -219,15 +218,15 @@ function check<T>(arb: ArbitraryCore<T>, show: Show<T>, test: (value: T) => any,
 
 export interface Checker<T> extends Arbitrary<T>, Show<T> {
     check(test: (value: T) => any, config?: Config): TestResult<T>
-    array1(): Checker<Array1<T>>
-    array2(): Checker<Array2<T>>
-    array(): Checker<T[]>
+    array(options: { readonly min: 1 }): Checker<Array1<T>>
+    array(options: { readonly min: 2 }): Checker<Array2<T>>
+    array(options?: { readonly min?: number }): Checker<T[]>
 
-    readonlyArray1(): Checker<ReadonlyArray1<T>>
-    readonlyArray2(): Checker<ReadonlyArray2<T>>
-    readonlyArray(): Checker<ReadonlyArray<T>>
+    readonlyArray(options: { readonly min: 1 }): Checker<ReadonlyArray1<T>>
+    readonlyArray(options: { readonly min: 2 }): Checker<ReadonlyArray2<T>>
+    readonlyArray(options?: { readonly min?: number }): Checker<ReadonlyArray<T>>
     
-    mapExtend<U extends T>(convertTo: (value: T) => U): Checker<U>
+    map<U extends T>(convertTo: (value: T) => U): Checker<U>
     map<U>(convertTo: (value: T) => U, convertFrom: (value: U) => T): Checker<U>
     filter(predicate: (value: T) => boolean): Checker<T>
 
@@ -244,17 +243,19 @@ class FromArbitrary<T> implements Checker<T> {
 
     check(this: Checker<T>, test: (value: T) => any, config?: Config): TestResult<T> { return check(this, this, test, config) }
     
-    
-    array1(): Checker<Array1<T>> { return array1(this) }
-    array2(): Checker<Array2<T>> { return array2(this) }
-    array(): Checker<T[]> { return array(this) }
+    array(options: { readonly min: 1 }): Checker<Array1<T>>
+    array(options: { readonly min: 2 }): Checker<Array2<T>>
+    array(options?: { readonly min?: number }): Checker<T[]>
+    array(options?: { readonly min?: number }): Checker<T[]> { return array(this, options) }
 
-    readonlyArray1(): Checker<ReadonlyArray1<T>> { return array1(this) as Checker<ReadonlyArray1<T>> }
-    readonlyArray2(): Checker<ReadonlyArray2<T>> { return array2(this) as Checker<ReadonlyArray2<T>> }
-    readonlyArray(): Checker<ReadonlyArray<T>> { return array(this) as Checker<ReadonlyArray<T>> }
+    readonlyArray(options: { readonly min: 1 }): Checker<ReadonlyArray1<T>>
+    readonlyArray(options: { readonly min: 2 }): Checker<ReadonlyArray2<T>>
+    readonlyArray(options?: { readonly min?: number }): Checker<ReadonlyArray<T>>
+    readonlyArray(options?: { readonly min?: number }): Checker<ReadonlyArray<T>> { return array(this, options) as Checker<ReadonlyArray<T>> }
     
-    mapExtend<U extends T>(convertTo: (value: T) => U): Checker<U> { return fromArbitrary(Arbitrary.mapExtend(this, convertTo)) }
-    map<U>(convertTo: (value: T) => U, convertFrom: (value: U) => T): Checker<U> { return fromArbitrary(Arbitrary.map(this, convertTo, convertFrom)) }
+    map<U extends T>(convertTo: (value: T) => U): Checker<U>
+    map<U>(convertTo: (value: T) => U, convertFrom: (value: U) => T): Checker<U>
+    map<U extends T>(convertTo: (value: T) => U, convertFrom: (value: U) => T = x => x): Checker<U> { return fromArbitrary(Arbitrary.map(this, convertTo, convertFrom)) }
     filter(predicate: (value: T) => boolean): Checker<T> { return fromArbitrary(Arbitrary.filter(this, predicate)) }
 
     nullable<A extends {} | undefined>(this: Arbitrary<A>): Checker<Nullable<A>> { return fromArbitrary(Arbitrary.nullable(this)) }
@@ -279,9 +280,11 @@ export const number = fromArbitrary(Arbitrary.number)
 export const int32: Checker<Int32> = fromArbitrary(Arbitrary.int32)
 export const codePoint: Checker<CodePoint> = fromArbitrary(Arbitrary.codePoint)
 
-export function array1<T>(arbitrary: ArbitraryCore<T>) { return fromArbitrary(Arbitrary.array1(arbitrary)) }
-export function array2<T>(arbitrary: ArbitraryCore<T>) { return fromArbitrary(Arbitrary.array2(arbitrary)) }
-export function array<T>(arbitrary: ArbitraryCore<T>) { return fromArbitrary(Arbitrary.array(arbitrary)) }
+
+export function array<T>(arbitrary: ArbitraryCore<T>, options: ArrayArbitraryOptions<1>): Checker<Array1<T>>
+export function array<T>(arbitrary: ArbitraryCore<T>, options: ArrayArbitraryOptions<2>): Checker<Array2<T>>
+export function array<T>(arbitrary: ArbitraryCore<T>, options?: Partial<ArrayArbitraryOptions<number>>): Checker<T[]>
+export function array<T>(arbitrary: ArbitraryCore<T>, options?: Partial<ArrayArbitraryOptions<number>>) { return fromArbitrary(Arbitrary.array(arbitrary, options)) }
 
 export const string = fromArbitrary(Arbitrary.string)
 export function interface_<T>(arbitraryMap: {[P in keyof T]: ArbitraryCore<T[P]> }) { return fromArbitrary(Arbitrary.interface_<T>(arbitraryMap)) }
