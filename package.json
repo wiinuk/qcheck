@@ -2,14 +2,9 @@
   "name": "qcheck",
   "description": "qcheck",
   "author": "wiinuk",
-  "license": "MIT",
+  "license": "SEE LICENSE IN LICENSE",
   "version": "0.1.0",
   "repository": "wiinuk/qcheck",
-  "main": "lib/qcheck",
-  "types": "lib/qcheck",
-  "engines": {
-    "node": ">=8.0.27"
-  },
   "dependencies": {
     "wiinuk-extensions": "^0.2.0"
   },
