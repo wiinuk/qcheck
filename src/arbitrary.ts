@@ -1,4 +1,5 @@
-import { Int32, Array1, Array2, primitive, CodePoint as C } from "wiinuk-extensions"
+// spell-checker: ignore arbitraries
+import { Int32, primitive, CodePoint as C } from "wiinuk-extensions"
 import * as ex from "wiinuk-extensions"
 import { Random } from "./random"
 
@@ -104,7 +105,7 @@ export namespace Arbitrary {
     export function pure<T>(value: T): Arbitrary<T> { return new Pure(value) }
 
     class Elements<T extends primitive> extends ArbitraryDefaults<T> {
-        private readonly _values: Array1<T>
+        private readonly _values: [T, ...T[]]
         constructor(value: T, ...values: T[]) {
             super()
             this._values = [value]
@@ -158,8 +159,8 @@ export namespace Arbitrary {
     export const number: Arbitrary<number> = extend({
         generate(r, n) {
             n = n | 0
-            const prec = 9999999999999
-            return Math.trunc(r.range(-n * prec, n * prec)) / Math.trunc(r.range(1, prec))
+            const precision = 9999999999999
+            return Math.trunc(r.range(-n * precision, n * precision)) / Math.trunc(r.range(1, precision))
         },
         *shrink(x) {
             if (x < 0) { yield -x }
@@ -233,11 +234,11 @@ export namespace Arbitrary {
         }
     }
 
-    export function array<T>(arbitrary: ArbitraryCore<T>, options: ArrayArbitraryOptions<1>): Arbitrary<Array1<T>>
-    export function array<T>(arbitrary: ArbitraryCore<T>, options: ArrayArbitraryOptions<2>): Arbitrary<Array2<T>>
+    export function array<T>(arbitrary: ArbitraryCore<T>, options: ArrayArbitraryOptions<1>): Arbitrary<[T, ...T[]]>
+    export function array<T>(arbitrary: ArbitraryCore<T>, options: ArrayArbitraryOptions<2>): Arbitrary<[T, T, ...T[]]>
     export function array<T>(arbitrary: ArbitraryCore<T>, options?: Partial<ArrayArbitraryOptions<number>>): Arbitrary<Array<T>>
     export function array<T>(arbitrary: ArbitraryCore<T>, { min = 0 } = {}): Arbitrary<Array<T>> { return new ArrayMinMaxArbitrary(arbitrary, min) }
-    
+
     const charArray = Arbitrary.array(Arbitrary.codePoint)
     export const string: Arbitrary<string> = extend({
         generate(r, size) { return String.fromCodePoint(...charArray.generate(r, size)) },
@@ -272,7 +273,7 @@ export namespace Arbitrary {
     }
 
     class Sum<T> extends ArbitraryDefaults<T> {
-        private readonly _arbitraries: Array1<[ArbitraryCore<T>, Is<T, T>]>
+        private readonly _arbitraries: [[ArbitraryCore<T>, Is<T, T>], ...[ArbitraryCore<T>, Is<T, T>][]]
 
         constructor(arbitrary: [ArbitraryCore<T>, Is<T, T>], ...arbitraries: [ArbitraryCore<T>, Is<T, T>][]) {
             super()
@@ -291,7 +292,7 @@ export namespace Arbitrary {
     }
 
     class Tuple<T> extends ArbitraryDefaults<T[]> {
-        private readonly _arbitraries: Array1<ArbitraryCore<T>>
+        private readonly _arbitraries: [ArbitraryCore<T>, ...ArbitraryCore<T>[]]
         constructor(arbitrary1: ArbitraryCore<T>, ...arbitraries: ArbitraryCore<T>[]) {
             super()
             this._arbitraries = [arbitrary1]

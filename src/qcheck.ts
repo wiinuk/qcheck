@@ -1,4 +1,5 @@
-import { mixed, Nullable, Optional, Array1, Array2, ReadonlyArray1, ReadonlyArray2, primitive, Int32, CodePoint } from "wiinuk-extensions"
+// spell-checker: ignore arbitraries
+import { mixed, Nullable, Optional, primitive, Int32, CodePoint } from "wiinuk-extensions"
 import { seedOfNow, Random } from "./random"
 import { Is, ArbitraryCore, Arbitrary, SampleOptions, ArrayArbitraryOptions } from "./arbitrary"
 
@@ -218,14 +219,14 @@ function check<T>(arb: ArbitraryCore<T>, show: Show<T>, test: (value: T) => any,
 
 export interface Checker<T> extends Arbitrary<T>, Show<T> {
     check(test: (value: T) => any, config?: Config): TestResult<T>
-    array(options: { readonly min: 1 }): Checker<Array1<T>>
-    array(options: { readonly min: 2 }): Checker<Array2<T>>
+    array(options: { readonly min: 1 }): Checker<[T, ...T[]]>
+    array(options: { readonly min: 2 }): Checker<[T, T, ...T[]]>
     array(options?: { readonly min?: number }): Checker<T[]>
 
-    readonlyArray(options: { readonly min: 1 }): Checker<ReadonlyArray1<T>>
-    readonlyArray(options: { readonly min: 2 }): Checker<ReadonlyArray2<T>>
-    readonlyArray(options?: { readonly min?: number }): Checker<ReadonlyArray<T>>
-    
+    readonlyArray(options: { readonly min: 1 }): Checker<readonly [T, ...T[]]>
+    readonlyArray(options: { readonly min: 2 }): Checker<readonly [T, T, ...T[]]>
+    readonlyArray(options?: { readonly min?: number }): Checker<readonly T[]>
+
     map<U extends T>(convertTo: (value: T) => U): Checker<U>
     map<U>(convertTo: (value: T) => U, convertFrom: (value: U) => T): Checker<U>
     filter(predicate: (value: T) => boolean): Checker<T>
@@ -242,17 +243,17 @@ class FromArbitrary<T> implements Checker<T> {
     shrink(value: T): Iterable<T> { return this._arbitrary.shrink(value) }
 
     check(this: Checker<T>, test: (value: T) => any, config?: Config): TestResult<T> { return check(this, this, test, config) }
-    
-    array(options: { readonly min: 1 }): Checker<Array1<T>>
-    array(options: { readonly min: 2 }): Checker<Array2<T>>
+
+    array(options: { readonly min: 1 }): Checker<[T, ...T[]]>
+    array(options: { readonly min: 2 }): Checker<[T, T, ...T[]]>
     array(options?: { readonly min?: number }): Checker<T[]>
     array(options?: { readonly min?: number }): Checker<T[]> { return array(this, options) }
 
-    readonlyArray(options: { readonly min: 1 }): Checker<ReadonlyArray1<T>>
-    readonlyArray(options: { readonly min: 2 }): Checker<ReadonlyArray2<T>>
-    readonlyArray(options?: { readonly min?: number }): Checker<ReadonlyArray<T>>
-    readonlyArray(options?: { readonly min?: number }): Checker<ReadonlyArray<T>> { return array(this, options) as Checker<ReadonlyArray<T>> }
-    
+    readonlyArray(options: { readonly min: 1 }): Checker<readonly [T, ...T[]]>
+    readonlyArray(options: { readonly min: 2 }): Checker<readonly [T, T, ...T[]]>
+    readonlyArray(options?: { readonly min?: number }): Checker<readonly T[]>
+    readonlyArray(options?: { readonly min?: number }): Checker<readonly T[]> { return array(this, options) as Checker<readonly T[]> }
+
     map<U extends T>(convertTo: (value: T) => U): Checker<U>
     map<U>(convertTo: (value: T) => U, convertFrom: (value: U) => T): Checker<U>
     map<U extends T>(convertTo: (value: T) => U, convertFrom: (value: U) => T = x => x): Checker<U> { return fromArbitrary(Arbitrary.map(this, convertTo, convertFrom)) }
@@ -281,8 +282,8 @@ export const int32: Checker<Int32> = fromArbitrary(Arbitrary.int32)
 export const codePoint: Checker<CodePoint> = fromArbitrary(Arbitrary.codePoint)
 
 
-export function array<T>(arbitrary: ArbitraryCore<T>, options: ArrayArbitraryOptions<1>): Checker<Array1<T>>
-export function array<T>(arbitrary: ArbitraryCore<T>, options: ArrayArbitraryOptions<2>): Checker<Array2<T>>
+export function array<T>(arbitrary: ArbitraryCore<T>, options: ArrayArbitraryOptions<1>): Checker<[T, ...T[]]>
+export function array<T>(arbitrary: ArbitraryCore<T>, options: ArrayArbitraryOptions<2>): Checker<[T, T, ...T[]]>
 export function array<T>(arbitrary: ArbitraryCore<T>, options?: Partial<ArrayArbitraryOptions<number>>): Checker<T[]>
 export function array<T>(arbitrary: ArbitraryCore<T>, options?: Partial<ArrayArbitraryOptions<number>>) { return fromArbitrary(Arbitrary.array(arbitrary, options)) }
 
@@ -348,9 +349,9 @@ function throwNotInitialized(): never {
 class ForwardDeclarationCheckerImpl<T> implements ForwardDeclarationChecker<T> {
     get definition(): Checker<T> { return this }
     set definition(x: Checker<T>) { Object.setPrototypeOf(this, x) }
-    
+
     check() { return throwNotInitialized() }
-    
+
     array1() { return throwNotInitialized() }
     array2() { return throwNotInitialized() }
     array() { return throwNotInitialized() }
