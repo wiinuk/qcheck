@@ -38,8 +38,8 @@ describe("Random", () => {
 
 describe("runner", () => {
     let buffer: string[] = []
-    const bufferdRunner = Runner.fromFunction(m => buffer.push(m))
-    const bufferdConfig = { ...Config.defaultValue, runner: bufferdRunner }
+    const bufferedRunner = Runner.fromFunction(m => buffer.push(m))
+    const bufferedConfig = { ...Config.defaultValue, runner: bufferedRunner }
 
     it("int32", () => {
         const expected = `0: 0
@@ -82,7 +82,7 @@ Original: 18
 Shrunk: 11`
 
         buffer = []
-        int32.check(x => { if (10 < x) { throw new Error("errrrror") } }, { ...bufferdConfig, seed: 1873066016 })
+        int32.check(x => { if (10 < x) { throw new Error("err") } }, { ...bufferedConfig, seed: 1873066016 })
         assert.deepEqual(buffer, expected.split(/\r?\n/))
     })
 })
@@ -129,7 +129,7 @@ function ltString(l: string, r: string) {
         )
 }
 
-describe("arbitarary", () => {
+describe("arbitrary", () => {
     it("CodePoint", () => {
         for (const x of codePoint.sample({ count: 100, delta: 1 })) {
             assertIsCodePoint(x)
@@ -156,7 +156,7 @@ describe("arbitarary", () => {
             for (const x2 of Iterable.truncate(type.shrink(x), 10)) {
                 assert.property(x2, "x")
                 assert.property(x2, "y")
-                
+
                 assertIsInt32(x2.x)
                 assert.isString(x2.y)
 
