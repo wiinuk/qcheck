@@ -3,7 +3,7 @@
   "description": "qcheck",
   "author": "wiinuk",
   "license": "MIT",
-  "version": "0.0.3",
+  "version": "0.1.0",
   "repository": "wiinuk/qcheck",
   "main": "lib/qcheck",
   "types": "lib/qcheck",
