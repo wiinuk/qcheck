@@ -23,7 +23,7 @@
     "typescript": "^4.3.2"
   },
   "scripts": {
-    "prepublish": "npm run test && npm run compile",
+    "prepublishOnly": "npm run test && npm run compile",
     "compile": "tsc --project .",
     "watch": "tsc --watch --project .",
     "test": "mocha"
