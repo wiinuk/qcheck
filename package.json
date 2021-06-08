@@ -3,7 +3,7 @@
   "description": "qcheck",
   "author": "wiinuk",
   "license": "SEE LICENSE IN LICENSE",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "repository": "wiinuk/qcheck",
   "dependencies": {
     "wiinuk-extensions": "^0.2.0"
