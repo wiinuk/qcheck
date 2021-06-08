@@ -1,12 +1,14 @@
 {
   "name": "qcheck",
-  "description": "qcheck",
+  "description": "qcheck is a library to support testing by generating random test cases.",
   "author": "wiinuk",
   "license": "SEE LICENSE IN LICENSE",
   "version": "0.1.3",
-  "repository": "wiinuk/qcheck",
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/wiinuk/qcheck.git"
+  },
   "main": "lib/qcheck",
-  "types": "lib/qcheck",
   "dependencies": {
     "wiinuk-extensions": "^0.2.0"
   },

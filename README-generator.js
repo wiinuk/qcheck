@@ -4,7 +4,6 @@ const prettier = require("prettier")
 const esprima = require("esprima")
 const escodegen = require("escodegen")
 const package = require("./package.json")
-const packageName = package.name
 const { assert } = require("chai")
 const { writeFile } = require("fs/promises")
 
@@ -44,14 +43,14 @@ const testCode = testFunction => {
         // TODO:
         .replace("./lib/qcheck", "qcheck")
 }
-const contents = `# ${packageName}
+const contents = `# ${package.name}
 
-${packageName} is a library to support testing by generating random test cases.
+${package.description}
 
 ## Installation
 
 \`\`\`sh
-npm install --save-dev ${packageName}
+npm install --save-dev ${package.name}
 \`\`\`
 
 ## Usage
