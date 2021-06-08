@@ -1,6 +1,6 @@
 import "mocha"
 import { assert } from "chai"
-import { Random, int32, Runner, Config, string, interface_ as object, Arbitrary, codePoint, tuple } from "../src/qcheck"
+import { Random, int32, Runner, Config, string, interface_ as object, Arbitrary, codePoint, tuple, elements } from "../src/qcheck"
 import { String, CodePoint, Iterable, Int32 } from "wiinuk-extensions"
 import { pure, sum } from "../src/qcheck"
 
@@ -208,6 +208,24 @@ describe("checker", () => {
                     ltString(x2[1], x[1]),
                     `x2.x /* ${x2[0]} */ < x.x /* ${x[0]} */ || x2.y /* "${x2[1]}" */ < x.y /* "${x[1]}" */`
                 )
+            }
+        }
+    })
+    it("1 | 2 | 3", () => {
+        const checker = elements(1, 2, 3)
+        for (const x of checker.sample({ count: 20, delta: 5 })) {
+            assert.deepInclude([1, 2, 3], x)
+
+            const xs = global.Array.from(Iterable.truncate(checker.shrink(x), 10))
+            for (const x2 of xs) {
+                assert.deepInclude([1, 2, 3], x2)
+                assert.isBelow(x2, x)
+            }
+            if (x === 1) {
+                assert.isEmpty(xs)
+            }
+            else {
+                assert.isNotEmpty(xs)
             }
         }
     })

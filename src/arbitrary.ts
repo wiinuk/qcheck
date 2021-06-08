@@ -105,14 +105,10 @@ export namespace Arbitrary {
     export function pure<T>(value: T) { return new Pure(value) }
 
     class Elements<T extends primitive> implements Arbitrary<T> {
-        private readonly _values: [T, ...T[]]
-        constructor(value: T, ...values: T[]) {
-            this._values = [value]
-            this._values.push(...values)
-        }
+        constructor(private readonly _values: readonly [T, ...T[]]) {}
         generate(r: Random) {
             const vs = this._values
-            return vs[r.next() * vs.length]
+            return vs[(r.next() * vs.length) | 0]
         }
         *shrink(value: T) {
             const vs = this._values
@@ -124,8 +120,8 @@ export namespace Arbitrary {
             }
         }
     }
-    export function elements<T extends primitive>(value: T, ...values: T[]): Arbitrary<T> {
-        return new Elements(value, ...values)
+    export function elements<T extends primitive>(values: readonly [T, ...T[]]): Arbitrary<T> {
+        return new Elements(values)
     }
 
     export namespace CodePoint {
@@ -304,8 +300,7 @@ export namespace Arbitrary {
     }
 
     export function tuple<TArbs extends readonly Arbitrary<any>[]>(arbitraries: TArbs) {
-        type targetTuple = { -readonly [k in keyof TArbs]: TArbs[k] extends Arbitrary<infer t> ? t : never }
-        return new Tuple<targetTuple[number]>(arbitraries) as Arbitrary<any[]> as Arbitrary<targetTuple>
+        return new Tuple(arbitraries) as Arbitrary<any[]> as Arbitrary<{ -readonly [k in keyof TArbs]: TArbs[k] extends Arbitrary<infer t> ? t : never }>
     }
 
     export function sum<TArbs extends readonly [DiscriminatedArbitrary<any, any>, ...DiscriminatedArbitrary<any, any>[]]>(arbitraries: TArbs): Arbitrary<{ [k in keyof TArbs]: TArbs[k] extends DiscriminatedArbitrary<any, infer t> ? t : never }[number]> {
