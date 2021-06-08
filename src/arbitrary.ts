@@ -35,16 +35,16 @@ class UncheckedDiscriminatedArbitrary<TOverall, T extends TOverall> implements D
 }
 export namespace Arbitrary {
     export function nullable<T extends {} | undefined>(arbitrary: Arbitrary<T>) {
-        return sum(
+        return sum([
             pure(null),
             uncheckedDiscriminatedArbitrary(arbitrary, (x): x is T => x !== null),
-        )
+        ])
     }
     export function optional<T extends {} | null>(arbitrary: Arbitrary<T>) {
-        return sum(
+        return sum([
             pure(void 0),
             uncheckedDiscriminatedArbitrary(arbitrary, (x): x is T => x !== void 0),
-        )
+        ])
     }
     export function sample<T>(arbitrary: Arbitrary<T>, { count = 100, initialSize = 0, delta = 2, seed = (Date.now() >>> 0) }: SampleOptions = {}) {
         const xs: T[] = []
@@ -271,12 +271,7 @@ export namespace Arbitrary {
     }
 
     class Sum<T> implements Arbitrary<T> {
-        private readonly _arbitraries: DiscriminatedArbitrary<T, T>[]
-
-        constructor(arbitrary: DiscriminatedArbitrary<T, T>, ...arbitraries: DiscriminatedArbitrary<T, T>[]) {
-            arbitraries.unshift(arbitrary)
-            this._arbitraries = arbitraries
-        }
+        constructor(private readonly _arbitraries: readonly DiscriminatedArbitrary<T, T>[]) {}
         generate(r: Random, size: number) {
             const arbs = this._arbitraries
             return arbs[(r.next() * arbs.length) | 0].generate(r, size)
@@ -313,25 +308,7 @@ export namespace Arbitrary {
         return new Tuple<targetTuple[number]>(arbitraries) as Arbitrary<any[]> as Arbitrary<targetTuple>
     }
 
-    // ```F#
-    // for i in 2..8 do
-    // let f sep f = {1..i} |> Seq.map f |> String.concat sep
-    // let g = f >> (>>) sprintf
-    // let t = g " | " "T%d"
-    // printfn "export function sum<%s>(%s): Arbitrary<%s>"
-    //     (g ", " "T%d")
-    //     (f ", " <| fun n -> sprintf "arbitrary%d: DiscriminatedArbitrary<%s, T%d>" n t n)
-    //     t
-    // ```
-    export function sum<T1, T2>(arbitrary1: DiscriminatedArbitrary<T1 | T2, T1>, arbitrary2: DiscriminatedArbitrary<T1 | T2, T2>): Arbitrary<T1 | T2>
-    export function sum<T1, T2, T3>(arbitrary1: DiscriminatedArbitrary<T1 | T2 | T3, T1>, arbitrary2: DiscriminatedArbitrary<T1 | T2 | T3, T2>, arbitrary3: DiscriminatedArbitrary<T1 | T2 | T3, T3>): Arbitrary<T1 | T2 | T3>
-    export function sum<T1, T2, T3, T4>(arbitrary1: DiscriminatedArbitrary<T1 | T2 | T3 | T4, T1>, arbitrary2: DiscriminatedArbitrary<T1 | T2 | T3 | T4, T2>, arbitrary3: DiscriminatedArbitrary<T1 | T2 | T3 | T4, T3>, arbitrary4: DiscriminatedArbitrary<T1 | T2 | T3 | T4, T4>): Arbitrary<T1 | T2 | T3 | T4>
-    export function sum<T1, T2, T3, T4, T5>(arbitrary1: DiscriminatedArbitrary<T1 | T2 | T3 | T4 | T5, T1>, arbitrary2: DiscriminatedArbitrary<T1 | T2 | T3 | T4 | T5, T2>, arbitrary3: DiscriminatedArbitrary<T1 | T2 | T3 | T4 | T5, T3>, arbitrary4: DiscriminatedArbitrary<T1 | T2 | T3 | T4 | T5, T4>, arbitrary5: DiscriminatedArbitrary<T1 | T2 | T3 | T4 | T5, T5>): Arbitrary<T1 | T2 | T3 | T4 | T5>
-    export function sum<T1, T2, T3, T4, T5, T6>(arbitrary1: DiscriminatedArbitrary<T1 | T2 | T3 | T4 | T5 | T6, T1>, arbitrary2: DiscriminatedArbitrary<T1 | T2 | T3 | T4 | T5 | T6, T2>, arbitrary3: DiscriminatedArbitrary<T1 | T2 | T3 | T4 | T5 | T6, T3>, arbitrary4: DiscriminatedArbitrary<T1 | T2 | T3 | T4 | T5 | T6, T4>, arbitrary5: DiscriminatedArbitrary<T1 | T2 | T3 | T4 | T5 | T6, T5>, arbitrary6: DiscriminatedArbitrary<T1 | T2 | T3 | T4 | T5 | T6, T6>): Arbitrary<T1 | T2 | T3 | T4 | T5 | T6>
-    export function sum<T1, T2, T3, T4, T5, T6, T7>(arbitrary1: DiscriminatedArbitrary<T1 | T2 | T3 | T4 | T5 | T6 | T7, T1>, arbitrary2: DiscriminatedArbitrary<T1 | T2 | T3 | T4 | T5 | T6 | T7, T2>, arbitrary3: DiscriminatedArbitrary<T1 | T2 | T3 | T4 | T5 | T6 | T7, T3>, arbitrary4: DiscriminatedArbitrary<T1 | T2 | T3 | T4 | T5 | T6 | T7, T4>, arbitrary5: DiscriminatedArbitrary<T1 | T2 | T3 | T4 | T5 | T6 | T7, T5>, arbitrary6: DiscriminatedArbitrary<T1 | T2 | T3 | T4 | T5 | T6 | T7, T6>, arbitrary7: DiscriminatedArbitrary<T1 | T2 | T3 | T4 | T5 | T6 | T7, T7>): Arbitrary<T1 | T2 | T3 | T4 | T5 | T6 | T7>
-    export function sum<T1, T2, T3, T4, T5, T6, T7, T8>(arbitrary1: DiscriminatedArbitrary<T1 | T2 | T3 | T4 | T5 | T6 | T7 | T8, T1>, arbitrary2: DiscriminatedArbitrary<T1 | T2 | T3 | T4 | T5 | T6 | T7 | T8, T2>, arbitrary3: DiscriminatedArbitrary<T1 | T2 | T3 | T4 | T5 | T6 | T7 | T8, T3>, arbitrary4: DiscriminatedArbitrary<T1 | T2 | T3 | T4 | T5 | T6 | T7 | T8, T4>, arbitrary5: DiscriminatedArbitrary<T1 | T2 | T3 | T4 | T5 | T6 | T7 | T8, T5>, arbitrary6: DiscriminatedArbitrary<T1 | T2 | T3 | T4 | T5 | T6 | T7 | T8, T6>, arbitrary7: DiscriminatedArbitrary<T1 | T2 | T3 | T4 | T5 | T6 | T7 | T8, T7>, arbitrary8: DiscriminatedArbitrary<T1 | T2 | T3 | T4 | T5 | T6 | T7 | T8, T8>): Arbitrary<T1 | T2 | T3 | T4 | T5 | T6 | T7 | T8>
-    export function sum<T>(arbitrary: DiscriminatedArbitrary<T, T>, ...arbitraries: DiscriminatedArbitrary<T, T>[]): Arbitrary<T>
-    export function sum<T>(arbitrary: DiscriminatedArbitrary<T, T>, ...arbitraries: DiscriminatedArbitrary<T, T>[]): Arbitrary<T> {
-        return new Sum(arbitrary, ...arbitraries)
+    export function sum<TArbs extends readonly DiscriminatedArbitrary<any, any>[]>(arbitraries: TArbs): Arbitrary<{ [k in keyof TArbs]: TArbs[k] extends DiscriminatedArbitrary<any, infer t> ? t : never }[number]> {
+        return new Sum(arbitraries)
     }
 }

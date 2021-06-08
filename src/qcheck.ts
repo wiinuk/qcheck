@@ -301,26 +301,8 @@ export function tuple<TArbs extends Arbitrary<any>[]>(...arbitraries: TArbs): Ch
     return fromArbitrary(Arbitrary.tuple(arbitraries))
 }
 
-// ```F#
-// for i in 2..8 do
-// let f sep f = {1..i} |> Seq.map f |> String.concat sep
-// let g = f >> (>>) sprintf
-// let t = g " | " "T%d"
-// printfn "export function sum<%s>(%s): Checker<%s>"
-//     (g ", " "T%d")
-//     (f ", " <| fun n -> sprintf "arbitrary%d: DiscriminatedArbitrary<%s, T%d>" n t n)
-//     t
-// ```
-export function sum<T1, T2>(arbitrary1: DiscriminatedArbitrary<T1 | T2, T1>, arbitrary2: DiscriminatedArbitrary<T1 | T2, T2>): Checker<T1 | T2>
-export function sum<T1, T2, T3>(arbitrary1: DiscriminatedArbitrary<T1 | T2 | T3, T1>, arbitrary2: DiscriminatedArbitrary<T1 | T2 | T3, T2>, arbitrary3: DiscriminatedArbitrary<T1 | T2 | T3, T3>): Checker<T1 | T2 | T3>
-export function sum<T1, T2, T3, T4>(arbitrary1: DiscriminatedArbitrary<T1 | T2 | T3 | T4, T1>, arbitrary2: DiscriminatedArbitrary<T1 | T2 | T3 | T4, T2>, arbitrary3: DiscriminatedArbitrary<T1 | T2 | T3 | T4, T3>, arbitrary4: DiscriminatedArbitrary<T1 | T2 | T3 | T4, T4>): Checker<T1 | T2 | T3 | T4>
-export function sum<T1, T2, T3, T4, T5>(arbitrary1: DiscriminatedArbitrary<T1 | T2 | T3 | T4 | T5, T1>, arbitrary2: DiscriminatedArbitrary<T1 | T2 | T3 | T4 | T5, T2>, arbitrary3: DiscriminatedArbitrary<T1 | T2 | T3 | T4 | T5, T3>, arbitrary4: DiscriminatedArbitrary<T1 | T2 | T3 | T4 | T5, T4>, arbitrary5: DiscriminatedArbitrary<T1 | T2 | T3 | T4 | T5, T5>): Checker<T1 | T2 | T3 | T4 | T5>
-export function sum<T1, T2, T3, T4, T5, T6>(arbitrary1: DiscriminatedArbitrary<T1 | T2 | T3 | T4 | T5 | T6, T1>, arbitrary2: DiscriminatedArbitrary<T1 | T2 | T3 | T4 | T5 | T6, T2>, arbitrary3: DiscriminatedArbitrary<T1 | T2 | T3 | T4 | T5 | T6, T3>, arbitrary4: DiscriminatedArbitrary<T1 | T2 | T3 | T4 | T5 | T6, T4>, arbitrary5: DiscriminatedArbitrary<T1 | T2 | T3 | T4 | T5 | T6, T5>, arbitrary6: DiscriminatedArbitrary<T1 | T2 | T3 | T4 | T5 | T6, T6>): Checker<T1 | T2 | T3 | T4 | T5 | T6>
-export function sum<T1, T2, T3, T4, T5, T6, T7>(arbitrary1: DiscriminatedArbitrary<T1 | T2 | T3 | T4 | T5 | T6 | T7, T1>, arbitrary2: DiscriminatedArbitrary<T1 | T2 | T3 | T4 | T5 | T6 | T7, T2>, arbitrary3: DiscriminatedArbitrary<T1 | T2 | T3 | T4 | T5 | T6 | T7, T3>, arbitrary4: DiscriminatedArbitrary<T1 | T2 | T3 | T4 | T5 | T6 | T7, T4>, arbitrary5: DiscriminatedArbitrary<T1 | T2 | T3 | T4 | T5 | T6 | T7, T5>, arbitrary6: DiscriminatedArbitrary<T1 | T2 | T3 | T4 | T5 | T6 | T7, T6>, arbitrary7: DiscriminatedArbitrary<T1 | T2 | T3 | T4 | T5 | T6 | T7, T7>): Checker<T1 | T2 | T3 | T4 | T5 | T6 | T7>
-export function sum<T1, T2, T3, T4, T5, T6, T7, T8>(arbitrary1: DiscriminatedArbitrary<T1 | T2 | T3 | T4 | T5 | T6 | T7 | T8, T1>, arbitrary2: DiscriminatedArbitrary<T1 | T2 | T3 | T4 | T5 | T6 | T7 | T8, T2>, arbitrary3: DiscriminatedArbitrary<T1 | T2 | T3 | T4 | T5 | T6 | T7 | T8, T3>, arbitrary4: DiscriminatedArbitrary<T1 | T2 | T3 | T4 | T5 | T6 | T7 | T8, T4>, arbitrary5: DiscriminatedArbitrary<T1 | T2 | T3 | T4 | T5 | T6 | T7 | T8, T5>, arbitrary6: DiscriminatedArbitrary<T1 | T2 | T3 | T4 | T5 | T6 | T7 | T8, T6>, arbitrary7: DiscriminatedArbitrary<T1 | T2 | T3 | T4 | T5 | T6 | T7 | T8, T7>, arbitrary8: DiscriminatedArbitrary<T1 | T2 | T3 | T4 | T5 | T6 | T7 | T8, T8>): Checker<T1 | T2 | T3 | T4 | T5 | T6 | T7 | T8>
-export function sum<T>(arbitrary: DiscriminatedArbitrary<T, T>, ...arbitraries: DiscriminatedArbitrary<T, T>[]): Checker<T>
-export function sum<T>(arbitrary: DiscriminatedArbitrary<T, T>, ...arbitraries: DiscriminatedArbitrary<T, T>[]) {
-    return fromArbitrary(Arbitrary.sum(arbitrary, ...arbitraries))
+export function sum<TArbs extends DiscriminatedArbitrary<any, any>[]>(...arbitraries: TArbs): Checker<{ [k in keyof TArbs]: TArbs[k] extends DiscriminatedArbitrary<any, infer t> ? t : never }[number]> {
+    return fromArbitrary(Arbitrary.sum(arbitraries))
 }
 
 export interface ForwardDeclarationChecker<T> extends Checker<T> {
