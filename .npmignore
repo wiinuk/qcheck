@@ -2,6 +2,7 @@
 .vs/
 .vscode/
 .mocharc.json
+.editorconfig
 lib/**/*.js.map
 lib.test/
 src/
