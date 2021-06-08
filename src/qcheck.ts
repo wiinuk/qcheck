@@ -303,7 +303,7 @@ export function pure<T extends null | undefined | string | number | boolean>(val
 export function pure<T>(value: T): Checker<T>
 export function pure<T>(value: T) { return fromArbitrary(Arbitrary.pure(value)) }
 
-export function elements<T extends primitive>(value: T, ...values: T[]) { return fromArbitrary(Arbitrary.elements(value, ...values)) }
+export function elements<T extends primitive>(value: T, ...values: T[]) { return fromArbitrary(Arbitrary.elements([value, ...values])) }
 
 export const number = fromArbitrary(Arbitrary.number)
 export const int32: Checker<Int32> = fromArbitrary(Arbitrary.int32)
