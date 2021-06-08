@@ -1,6 +1,6 @@
 import "mocha"
 import { assert } from "chai"
-import { Random, int32, Runner, Config, string, interface_ as object, Arbitrary, codePoint } from "../src/qcheck"
+import { Random, int32, Runner, Config, string, interface_ as object, Arbitrary, codePoint, tuple } from "../src/qcheck"
 import { String, CodePoint, Iterable, Int32 } from "wiinuk-extensions"
 import { pure, sum } from "../src/qcheck"
 
@@ -183,5 +183,27 @@ describe("checker", () => {
         checker
             .sample({ count: 100 })
             .forEach(x => assert.deepOwnInclude(["a", 42], x))
+    })
+    it("[int32, string]", () => {
+        const checker = tuple(int32, string)
+        for (const x of checker.sample({ count: 20, delta: 5 })) {
+            assert.equal(x.length, 2)
+
+            assertIsInt32(x[0])
+            assert.isString(x[1])
+
+            for (const x2 of Iterable.truncate(checker.shrink(x), 10)) {
+                assert.equal(x2.length, 2)
+
+                assertIsInt32(x2[0])
+                assert.isString(x2[1])
+
+                assert.isTrue(
+                    ltInt32(x2[0], x[0]) ||
+                    ltString(x2[1], x[1]),
+                    `x2.x /* ${x2[0]} */ < x.x /* ${x[0]} */ || x2.y /* "${x2[1]}" */ < x.y /* "${x[1]}" */`
+                )
+            }
+        }
     })
 })

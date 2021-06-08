@@ -297,30 +297,8 @@ export function array<T>(arbitrary: Arbitrary<T>, options?: Partial<ArrayArbitra
 export const string = fromArbitrary(Arbitrary.string)
 export function interface_<T>(arbitraryMap: {[P in keyof T]: Arbitrary<T[P]> }) { return fromArbitrary(Arbitrary.interface_<T>(arbitraryMap)) }
 
-// ```F#
-// for i in 1..12 do
-//     let f sep f = {1..i} |> Seq.map f |> String.concat sep
-//     let ts = f ", " <| sprintf "T%d"
-//     printfn "export function tuple<%s>(%s): Checker<[%s]>"
-//         ts
-//         (f ", " <| fun n -> sprintf "arbitrary%d: Arbitrary<T%d>" n n)
-//         ts
-// ```
-export function tuple<T1>(arbitrary1: Arbitrary<T1>): Checker<[T1]>
-export function tuple<T1, T2>(arbitrary1: Arbitrary<T1>, arbitrary2: Arbitrary<T2>): Checker<[T1, T2]>
-export function tuple<T1, T2, T3>(arbitrary1: Arbitrary<T1>, arbitrary2: Arbitrary<T2>, arbitrary3: Arbitrary<T3>): Checker<[T1, T2, T3]>
-export function tuple<T1, T2, T3, T4>(arbitrary1: Arbitrary<T1>, arbitrary2: Arbitrary<T2>, arbitrary3: Arbitrary<T3>, arbitrary4: Arbitrary<T4>): Checker<[T1, T2, T3, T4]>
-export function tuple<T1, T2, T3, T4, T5>(arbitrary1: Arbitrary<T1>, arbitrary2: Arbitrary<T2>, arbitrary3: Arbitrary<T3>, arbitrary4: Arbitrary<T4>, arbitrary5: Arbitrary<T5>): Checker<[T1, T2, T3, T4, T5]>
-export function tuple<T1, T2, T3, T4, T5, T6>(arbitrary1: Arbitrary<T1>, arbitrary2: Arbitrary<T2>, arbitrary3: Arbitrary<T3>, arbitrary4: Arbitrary<T4>, arbitrary5: Arbitrary<T5>, arbitrary6: Arbitrary<T6>): Checker<[T1, T2, T3, T4, T5, T6]>
-export function tuple<T1, T2, T3, T4, T5, T6, T7>(arbitrary1: Arbitrary<T1>, arbitrary2: Arbitrary<T2>, arbitrary3: Arbitrary<T3>, arbitrary4: Arbitrary<T4>, arbitrary5: Arbitrary<T5>, arbitrary6: Arbitrary<T6>, arbitrary7: Arbitrary<T7>): Checker<[T1, T2, T3, T4, T5, T6, T7]>
-export function tuple<T1, T2, T3, T4, T5, T6, T7, T8>(arbitrary1: Arbitrary<T1>, arbitrary2: Arbitrary<T2>, arbitrary3: Arbitrary<T3>, arbitrary4: Arbitrary<T4>, arbitrary5: Arbitrary<T5>, arbitrary6: Arbitrary<T6>, arbitrary7: Arbitrary<T7>, arbitrary8: Arbitrary<T8>): Checker<[T1, T2, T3, T4, T5, T6, T7, T8]>
-export function tuple<T1, T2, T3, T4, T5, T6, T7, T8, T9>(arbitrary1: Arbitrary<T1>, arbitrary2: Arbitrary<T2>, arbitrary3: Arbitrary<T3>, arbitrary4: Arbitrary<T4>, arbitrary5: Arbitrary<T5>, arbitrary6: Arbitrary<T6>, arbitrary7: Arbitrary<T7>, arbitrary8: Arbitrary<T8>, arbitrary9: Arbitrary<T9>): Checker<[T1, T2, T3, T4, T5, T6, T7, T8, T9]>
-export function tuple<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>(arbitrary1: Arbitrary<T1>, arbitrary2: Arbitrary<T2>, arbitrary3: Arbitrary<T3>, arbitrary4: Arbitrary<T4>, arbitrary5: Arbitrary<T5>, arbitrary6: Arbitrary<T6>, arbitrary7: Arbitrary<T7>, arbitrary8: Arbitrary<T8>, arbitrary9: Arbitrary<T9>, arbitrary10: Arbitrary<T10>): Checker<[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10]>
-export function tuple<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11>(arbitrary1: Arbitrary<T1>, arbitrary2: Arbitrary<T2>, arbitrary3: Arbitrary<T3>, arbitrary4: Arbitrary<T4>, arbitrary5: Arbitrary<T5>, arbitrary6: Arbitrary<T6>, arbitrary7: Arbitrary<T7>, arbitrary8: Arbitrary<T8>, arbitrary9: Arbitrary<T9>, arbitrary10: Arbitrary<T10>, arbitrary11: Arbitrary<T11>): Checker<[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11]>
-export function tuple<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12>(arbitrary1: Arbitrary<T1>, arbitrary2: Arbitrary<T2>, arbitrary3: Arbitrary<T3>, arbitrary4: Arbitrary<T4>, arbitrary5: Arbitrary<T5>, arbitrary6: Arbitrary<T6>, arbitrary7: Arbitrary<T7>, arbitrary8: Arbitrary<T8>, arbitrary9: Arbitrary<T9>, arbitrary10: Arbitrary<T10>, arbitrary11: Arbitrary<T11>, arbitrary12: Arbitrary<T12>): Checker<[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12]>
-export function tuple<T>(arbitrary: Arbitrary<T>, ...arbitraries: Arbitrary<T>[]): Checker<T[]>
-export function tuple<T>(arbitrary: Arbitrary<T>, ...arbitraries: Arbitrary<T>[]): Checker<T[]> {
-    return fromArbitrary(Arbitrary.tuple(arbitrary, ...arbitraries))
+export function tuple<TArbs extends Arbitrary<any>[]>(...arbitraries: TArbs): Checker<{ [k in keyof TArbs]: TArbs[k] extends Arbitrary<infer t> ? t : never }> {
+    return fromArbitrary(Arbitrary.tuple(arbitraries))
 }
 
 // ```F#
