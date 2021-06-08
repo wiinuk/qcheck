@@ -86,6 +86,11 @@ Shrunk: 11`
         int32.check(x => { if (10 < x) { throw new Error("err") } }, { ...bufferedConfig, seed: 1873066016 })
         assert.deepEqual(buffer, expected.split(/\r?\n/))
     })
+    it("default runner is throwOnFailure", () => {
+        assert.throws(() => {
+            string.check(() => { throw new Error("err") })
+        })
+    })
 })
 
 function assertIsInt32(x: any) {

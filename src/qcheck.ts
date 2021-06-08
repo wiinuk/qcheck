@@ -102,6 +102,18 @@ export interface Runner {
     onFinish<T>(result: TestResult<T>): void
 }
 export namespace Runner {
+    const printOnFinish = <T>(result: TestResult<T>, log: (line: string) => void) => {
+        if (result.type === "Success") { return log(`Ok passed ${result.testCount} tests.`) }
+
+        const { show, testCount, shrinkCount, seed, originalFail, minFail } = result
+        log(`Falsifiable, after ${testCount} tests (${shrinkCount} shrink) (seed: ${seed}):`)
+        log(`Original: ${show.stringify(originalFail)}`)
+        log(`Shrunk: ${show.stringify(minFail)}`)
+
+        if (result.type === "Exception") {
+            log(`with exception: ${result.error}`)
+        }
+    }
     export function fromFunction(log: (message: string) => void): Runner {
         return {
             onShrink(shrinkCount, maxValue, value) {
@@ -111,20 +123,29 @@ export namespace Runner {
                 log(`${testCount}: ${currentValue}`)
             },
             onFinish(result) {
-                if (result.type === "Success") { return log(`Ok passed ${result.testCount} tests.`) }
-
-                const { show, testCount, shrinkCount, seed, originalFail, minFail } = result
-                log(`Falsifiable, after ${testCount} tests (${shrinkCount} shrink) (seed: ${seed}):`)
-                log(`Original: ${show.stringify(originalFail)}`)
-                log(`Shrunk: ${show.stringify(minFail)}`)
-
-                if (result.type === "Exception") {
-                    log(`with exception: ${result.error}`)
-                }
+                printOnFinish(result, log)
             }
         }
     }
     export const console = fromFunction(global.console.log)
+    export const throwOnFailure: Runner = {
+        onShrink() {},
+        onTest() {},
+        onFinish(result) {
+            if (result.type === "Success") { return }
+
+            throw new (class TestFailureError extends Error {
+                constructor() {
+                    let message = ""
+                    printOnFinish(result, line => message += line + "\n")
+                    super(message)
+                }
+                get testResult() { return result }
+            })()
+
+
+        }
+    }
 }
 
 export interface Config {
@@ -197,7 +218,7 @@ function findLocalMinFail<T>(state: State<T>, originalFail: T): TestResult<T> {
     return TestResult.testFailure({ shrinkCount, originalFail, minFail, seed, show, testCount })
 }
 
-function check<T>(arb: Arbitrary<T>, show: Show<T>, test: (value: T) => any, { seed = seedOfNow(), maxTest, startSize, endSize, runner = Runner.console } = Config.defaultValue) {
+function check<T>(arb: Arbitrary<T>, show: Show<T>, test: (value: T) => any, { seed = seedOfNow(), maxTest, startSize, endSize, runner = Runner.throwOnFailure } = Config.defaultValue) {
     const
         random = new Random(seed),
         minSize = Math.max(1, startSize),
