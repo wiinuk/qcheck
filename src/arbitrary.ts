@@ -3,9 +3,6 @@ import { Int32, primitive, CodePoint as C } from "wiinuk-extensions"
 import * as ex from "wiinuk-extensions"
 import { Random } from "./random"
 
-
-export type Is<T, U extends T> = (x: T) => x is U
-
 export interface SampleOptions {
     count?: number
     initialSize?: number
@@ -21,32 +18,33 @@ export interface Arbitrary<T> {
     generate(random: Random, size: Int32): T
     shrink(value: T): Iterable<T>
 }
+export interface Discriminator<TOverall, T extends TOverall> {
+    is(value: TOverall): value is T
+}
+export interface DiscriminatedArbitrary<TOverall, T extends TOverall> extends Arbitrary<T>, Discriminator<TOverall, T> {
+}
 
+const uncheckedDiscriminatedArbitrary = <TOverall, T extends TOverall>(arbitrary: Arbitrary<T>, is: (value: TOverall) => value is T): DiscriminatedArbitrary<TOverall, T> => {
+    return new UncheckedDiscriminatedArbitrary(arbitrary, is)
+}
+class UncheckedDiscriminatedArbitrary<TOverall, T extends TOverall> implements DiscriminatedArbitrary<TOverall, T> {
+    constructor(private readonly _arbitrary: Arbitrary<T>, private readonly _is: (value: TOverall) => value is T) {}
+    generate(random: Random, size: Int32) { return this._arbitrary.generate(random, size) }
+    shrink(value: T) { return this._arbitrary.shrink(value) }
+    is(value: TOverall): value is T { return this._is(value) }
+}
 export namespace Arbitrary {
     export function nullable<T extends {} | undefined>(arbitrary: Arbitrary<T>) {
-        return sum(
-            [pure(null), (x): x is null => x === null],
-            [arbitrary, (x): x is T => x !== null],
-        )
+        return sum([
+            pure(null),
+            uncheckedDiscriminatedArbitrary(arbitrary, (x): x is T => x !== null),
+        ])
     }
     export function optional<T extends {} | null>(arbitrary: Arbitrary<T>) {
-        return sum(
-            [pure(void 0), (x): x is undefined => x === void 0],
-            [arbitrary, (x): x is T => x !== void 0],
-        )
-    }
-    abstract class ArbitraryDefaults<T> implements Arbitrary<T> {
-        abstract generate(random: Random, size: Int32): T
-        abstract shrink(value: T): Iterable<T>
-        sample(options?: SampleOptions) { return sample(this, options) }
-    }
-    class Extend<T> extends ArbitraryDefaults<T> {
-        constructor(private readonly _arbitrary: Arbitrary<T>) { super() }
-        generate(random: Random, size: Int32) { return this._arbitrary.generate(random, size) }
-        shrink(value: T) { return this._arbitrary.shrink(value) }
-    }
-    export function extend<T>(arbitrary: Arbitrary<T>): Arbitrary<T> {
-        return new Extend(arbitrary)
+        return sum([
+            pure(void 0),
+            uncheckedDiscriminatedArbitrary(arbitrary, (x): x is T => x !== void 0),
+        ])
     }
     export function sample<T>(arbitrary: Arbitrary<T>, { count = 100, initialSize = 0, delta = 2, seed = (Date.now() >>> 0) }: SampleOptions = {}) {
         const xs: T[] = []
@@ -57,8 +55,8 @@ export namespace Arbitrary {
         }
         return xs
     }
-    class Map<T, U> extends ArbitraryDefaults<U> {
-        constructor(private readonly _arbitrary: Arbitrary<T>, private readonly _to: (x: T) => U, private readonly _from: (x: U) => T) { super() }
+    class Map<T, U> implements Arbitrary<U> {
+        constructor(private readonly _arbitrary: Arbitrary<T>, private readonly _to: (x: T) => U, private readonly _from: (x: U) => T) {}
         generate(r: Random, n: Int32) { return this._to(this._arbitrary.generate(r, n)) }
         *shrink(value: U) {
             const to = this._to
@@ -71,10 +69,10 @@ export namespace Arbitrary {
     export function mapExtend<T, U extends T>(arbitrary: Arbitrary<T>, convertTo: (x: T) => U): Arbitrary<U> {
         return new Map(arbitrary, convertTo, x => x)
     }
-    class Filter<T> extends ArbitraryDefaults<T> {
+    class Filter<T> implements Arbitrary<T> {
         constructor(
             private readonly _arbitrary: Arbitrary<T>,
-            private readonly _predicate: (value: T) => boolean) { super() }
+            private readonly _predicate: (value: T) => boolean) {}
 
         generate(random: Random, size: Int32) {
             const { _arbitrary: arb, _predicate: pred } = this
@@ -94,17 +92,21 @@ export namespace Arbitrary {
         return new Filter(arbitrary, predicate)
     }
 
-    class Pure<T> extends ArbitraryDefaults<T> {
-        constructor(private readonly _value: T) { super() }
+    class Pure<T> implements DiscriminatedArbitrary<unknown, T> {
+        constructor(private readonly _value: T) {}
+        is(this: Pure<primitive>, value: unknown): value is T {
+            return value === this._value
+        }
         generate() { return this._value }
         *shrink(): Iterable<T> { }
     }
-    export function pure<T>(value: T): Arbitrary<T> { return new Pure(value) }
+    export function pure<T extends primitive>(value: T): DiscriminatedArbitrary<unknown, T>
+    export function pure<T>(value: T): Arbitrary<T>
+    export function pure<T>(value: T) { return new Pure(value) }
 
-    class Elements<T extends primitive> extends ArbitraryDefaults<T> {
+    class Elements<T extends primitive> implements Arbitrary<T> {
         private readonly _values: [T, ...T[]]
         constructor(value: T, ...values: T[]) {
-            super()
             this._values = [value]
             this._values.push(...values)
         }
@@ -153,7 +155,7 @@ export namespace Arbitrary {
         yield (n / 2) | 0
         yield 0
     }
-    export const number: Arbitrary<number> = extend({
+    export const number: Arbitrary<number> = {
         generate(r, n) {
             n = n | 0
             const precision = 9999999999999
@@ -163,12 +165,12 @@ export namespace Arbitrary {
             if (x < 0) { yield -x }
             yield* shrinkInteger(Math.trunc(x))
         }
-    })
-    export const int32: Arbitrary<Int32> = extend({
+    }
+    export const int32: Arbitrary<Int32> = {
         generate(r, size) { return r.range(-size, size) | 0 },
         shrink(x) { return shrinkInteger(x | 0) }
-    })
-    export const codePoint: Arbitrary<C> = extend({
+    }
+    export const codePoint: Arbitrary<C> = {
         generate(r) {
             return (r.next() < 0.5) ? (r.range(C.Min, C.AsciiMax) | 0) : (r.range(C.Min, C.Latin1Max) | 0)
         },
@@ -191,10 +193,10 @@ export namespace Arbitrary {
                 if (cat2 < cat || (cat2 === cat && c2 < c)) { yield c2 }
             }
         }
-    })
+    }
 
-    class ArrayMinMaxArbitrary<T> extends ArbitraryDefaults<Array<T>> {
-        constructor(private readonly _arbitrary: Arbitrary<T>, private readonly _minLength: number) { super() }
+    class ArrayMinMaxArbitrary<T> implements Arbitrary<Array<T>> {
+        constructor(private readonly _arbitrary: Arbitrary<T>, private readonly _minLength: number) {}
         generate(r: Random, size: number) {
             let xs: T[] = []
             const count = Math.max(this._minLength, r.range(0, size) | 0)
@@ -237,18 +239,17 @@ export namespace Arbitrary {
     export function array<T>(arbitrary: Arbitrary<T>, { min = 0 } = {}): Arbitrary<Array<T>> { return new ArrayMinMaxArbitrary(arbitrary, min) }
 
     const charArray = Arbitrary.array(Arbitrary.codePoint)
-    export const string: Arbitrary<string> = extend({
+    export const string: Arbitrary<string> = {
         generate(r, size) { return String.fromCodePoint(...charArray.generate(r, size)) },
         *shrink(xs) {
             for (const cs of charArray.shrink(ex.String.codePoints(xs))) {
                 yield String.fromCodePoint(...cs)
             }
         }
-    })
-    class Interface<T> extends ArbitraryDefaults<T> {
+    }
+    class Interface<T> implements Arbitrary<T> {
         readonly _keys: (keyof T)[]
         constructor(private readonly _arbitraryMap: {[P in keyof T]: Arbitrary<T[P]> }) {
-            super()
             this._keys = (Object.keys(_arbitraryMap) as (keyof T)[]).sort()
         }
         generate(r: Random, size: number) {
@@ -269,32 +270,21 @@ export namespace Arbitrary {
         return new Interface(arbitraryMap)
     }
 
-    class Sum<T> extends ArbitraryDefaults<T> {
-        private readonly _arbitraries: [[Arbitrary<T>, Is<T, T>], ...[Arbitrary<T>, Is<T, T>][]]
-
-        constructor(arbitrary: [Arbitrary<T>, Is<T, T>], ...arbitraries: [Arbitrary<T>, Is<T, T>][]) {
-            super()
-            this._arbitraries = [arbitrary]
-            this._arbitraries.push(...arbitraries)
-        }
+    class Sum<T> implements Arbitrary<T> {
+        constructor(private readonly _arbitraries: readonly DiscriminatedArbitrary<T, T>[]) {}
         generate(r: Random, size: number) {
             const arbs = this._arbitraries
-            return arbs[r.next() * arbs.length][0].generate(r, size)
+            return arbs[(r.next() * arbs.length) | 0].generate(r, size)
         }
         *shrink(value: T) {
-            for (const [arb, is] of this._arbitraries) {
-                if (is(value)) { yield* arb.shrink(value) }
+            for (const arb of this._arbitraries) {
+                if (arb.is(value)) { yield* arb.shrink(value) }
             }
         }
     }
 
-    class Tuple<T> extends ArbitraryDefaults<T[]> {
-        private readonly _arbitraries: [Arbitrary<T>, ...Arbitrary<T>[]]
-        constructor(arbitrary1: Arbitrary<T>, ...arbitraries: Arbitrary<T>[]) {
-            super()
-            this._arbitraries = [arbitrary1]
-            this._arbitraries.push(...arbitraries)
-        }
+    class Tuple<T> implements Arbitrary<T[]> {
+        constructor(private readonly _arbitraries: readonly Arbitrary<T>[]) {}
 
         generate(r: Random, n: Int32) {
             return this._arbitraries.map(arb => arb.generate(r, n))
@@ -313,53 +303,12 @@ export namespace Arbitrary {
         }
     }
 
-    // ```F#
-    // for i in 2..8 do
-    // let f sep f = {1..i} |> Seq.map f |> String.concat sep
-    // let g = f >> (>>) sprintf
-    // let t = g " | " "T%d"
-    // printfn "export function sum<%s>(%s): Arbitrary<%s>"
-    //     (g ", " "T%d")
-    //     (f ", " <| fun n -> sprintf "arbitrary%d: [ArbitraryCore<T%d>, Is<%s, T%d>]" n n t n)
-    //     t
-    // ```
-    export function tuple<T1>(arbitrary1: Arbitrary<T1>): Arbitrary<[T1]>
-    export function tuple<T1, T2>(arbitrary1: Arbitrary<T1>, arbitrary2: Arbitrary<T2>): Arbitrary<[T1, T2]>
-    export function tuple<T1, T2, T3>(arbitrary1: Arbitrary<T1>, arbitrary2: Arbitrary<T2>, arbitrary3: Arbitrary<T3>): Arbitrary<[T1, T2, T3]>
-    export function tuple<T1, T2, T3, T4>(arbitrary1: Arbitrary<T1>, arbitrary2: Arbitrary<T2>, arbitrary3: Arbitrary<T3>, arbitrary4: Arbitrary<T4>): Arbitrary<[T1, T2, T3, T4]>
-    export function tuple<T1, T2, T3, T4, T5>(arbitrary1: Arbitrary<T1>, arbitrary2: Arbitrary<T2>, arbitrary3: Arbitrary<T3>, arbitrary4: Arbitrary<T4>, arbitrary5: Arbitrary<T5>): Arbitrary<[T1, T2, T3, T4, T5]>
-    export function tuple<T1, T2, T3, T4, T5, T6>(arbitrary1: Arbitrary<T1>, arbitrary2: Arbitrary<T2>, arbitrary3: Arbitrary<T3>, arbitrary4: Arbitrary<T4>, arbitrary5: Arbitrary<T5>, arbitrary6: Arbitrary<T6>): Arbitrary<[T1, T2, T3, T4, T5, T6]>
-    export function tuple<T1, T2, T3, T4, T5, T6, T7>(arbitrary1: Arbitrary<T1>, arbitrary2: Arbitrary<T2>, arbitrary3: Arbitrary<T3>, arbitrary4: Arbitrary<T4>, arbitrary5: Arbitrary<T5>, arbitrary6: Arbitrary<T6>, arbitrary7: Arbitrary<T7>): Arbitrary<[T1, T2, T3, T4, T5, T6, T7]>
-    export function tuple<T1, T2, T3, T4, T5, T6, T7, T8>(arbitrary1: Arbitrary<T1>, arbitrary2: Arbitrary<T2>, arbitrary3: Arbitrary<T3>, arbitrary4: Arbitrary<T4>, arbitrary5: Arbitrary<T5>, arbitrary6: Arbitrary<T6>, arbitrary7: Arbitrary<T7>, arbitrary8: Arbitrary<T8>): Arbitrary<[T1, T2, T3, T4, T5, T6, T7, T8]>
-    export function tuple<T1, T2, T3, T4, T5, T6, T7, T8, T9>(arbitrary1: Arbitrary<T1>, arbitrary2: Arbitrary<T2>, arbitrary3: Arbitrary<T3>, arbitrary4: Arbitrary<T4>, arbitrary5: Arbitrary<T5>, arbitrary6: Arbitrary<T6>, arbitrary7: Arbitrary<T7>, arbitrary8: Arbitrary<T8>, arbitrary9: Arbitrary<T9>): Arbitrary<[T1, T2, T3, T4, T5, T6, T7, T8, T9]>
-    export function tuple<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>(arbitrary1: Arbitrary<T1>, arbitrary2: Arbitrary<T2>, arbitrary3: Arbitrary<T3>, arbitrary4: Arbitrary<T4>, arbitrary5: Arbitrary<T5>, arbitrary6: Arbitrary<T6>, arbitrary7: Arbitrary<T7>, arbitrary8: Arbitrary<T8>, arbitrary9: Arbitrary<T9>, arbitrary10: Arbitrary<T10>): Arbitrary<[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10]>
-    export function tuple<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11>(arbitrary1: Arbitrary<T1>, arbitrary2: Arbitrary<T2>, arbitrary3: Arbitrary<T3>, arbitrary4: Arbitrary<T4>, arbitrary5: Arbitrary<T5>, arbitrary6: Arbitrary<T6>, arbitrary7: Arbitrary<T7>, arbitrary8: Arbitrary<T8>, arbitrary9: Arbitrary<T9>, arbitrary10: Arbitrary<T10>, arbitrary11: Arbitrary<T11>): Arbitrary<[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11]>
-    export function tuple<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12>(arbitrary1: Arbitrary<T1>, arbitrary2: Arbitrary<T2>, arbitrary3: Arbitrary<T3>, arbitrary4: Arbitrary<T4>, arbitrary5: Arbitrary<T5>, arbitrary6: Arbitrary<T6>, arbitrary7: Arbitrary<T7>, arbitrary8: Arbitrary<T8>, arbitrary9: Arbitrary<T9>, arbitrary10: Arbitrary<T10>, arbitrary11: Arbitrary<T11>, arbitrary12: Arbitrary<T12>): Arbitrary<[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12]>
-    export function tuple<T>(arbitrary: Arbitrary<T>, ...arbitraries: Arbitrary<T>[]): Arbitrary<T[]>
-    export function tuple<T>(arbitrary: Arbitrary<T>, ...arbitraries: Arbitrary<T>[]): Arbitrary<T[]> {
-        return new Tuple(arbitrary, ...arbitraries)
+    export function tuple<TArbs extends readonly Arbitrary<any>[]>(arbitraries: TArbs) {
+        type targetTuple = { -readonly [k in keyof TArbs]: TArbs[k] extends Arbitrary<infer t> ? t : never }
+        return new Tuple<targetTuple[number]>(arbitraries) as Arbitrary<any[]> as Arbitrary<targetTuple>
     }
 
-    // ```F#
-    // for i in 2..8 do
-    // let f sep f = {1..i} |> Seq.map f |> String.concat sep
-    // let g = f >> (>>) sprintf
-    // let t = g " | " "T%d"
-    // printfn "export function sum<%s>(%s): Arbitrary<%s>"
-    //     (g ", " "T%d")
-    //     (f ", " <| fun n -> sprintf "arbitrary%d: [ArbitraryCore<T%d>, Is<%s, T%d>]" n n t n)
-    //     t
-    // ```
-    export function sum<T1, T2>(arbitrary1: [Arbitrary<T1>, Is<T1 | T2, T1>], arbitrary2: [Arbitrary<T2>, Is<T1 | T2, T2>]): Arbitrary<T1 | T2>
-    export function sum<T1, T2, T3>(arbitrary1: [Arbitrary<T1>, Is<T1 | T2 | T3, T1>], arbitrary2: [Arbitrary<T2>, Is<T1 | T2 | T3, T2>], arbitrary3: [Arbitrary<T3>, Is<T1 | T2 | T3, T3>]): Arbitrary<T1 | T2 | T3>
-    export function sum<T1, T2, T3, T4>(arbitrary1: [Arbitrary<T1>, Is<T1 | T2 | T3 | T4, T1>], arbitrary2: [Arbitrary<T2>, Is<T1 | T2 | T3 | T4, T2>], arbitrary3: [Arbitrary<T3>, Is<T1 | T2 | T3 | T4, T3>], arbitrary4: [Arbitrary<T4>, Is<T1 | T2 | T3 | T4, T4>]): Arbitrary<T1 | T2 | T3 | T4>
-    export function sum<T1, T2, T3, T4, T5>(arbitrary1: [Arbitrary<T1>, Is<T1 | T2 | T3 | T4 | T5, T1>], arbitrary2: [Arbitrary<T2>, Is<T1 | T2 | T3 | T4 |
-        T5, T2>], arbitrary3: [Arbitrary<T3>, Is<T1 | T2 | T3 | T4 | T5, T3>], arbitrary4: [Arbitrary<T4>, Is<T1 | T2 | T3 | T4 | T5, T4>], arbitrary5: [Arbitrary<T5>, Is<T1 | T2 | T3 | T4 | T5, T5>]): Arbitrary<T1 | T2 | T3 | T4 | T5>
-    export function sum<T1, T2, T3, T4, T5, T6>(arbitrary1: [Arbitrary<T1>, Is<T1 | T2 | T3 | T4 | T5 | T6, T1>], arbitrary2: [Arbitrary<T2>, Is<T1 | T2 | T3 | T4 | T5 | T6, T2>], arbitrary3: [Arbitrary<T3>, Is<T1 | T2 | T3 | T4 | T5 | T6, T3>], arbitrary4: [Arbitrary<T4>, Is<T1 | T2 | T3 | T4 | T5 | T6, T4>], arbitrary5: [Arbitrary<T5>, Is<T1 | T2 | T3 | T4 | T5 | T6, T5>], arbitrary6: [Arbitrary<T6>, Is<T1 | T2 | T3 | T4 | T5 | T6, T6>]): Arbitrary<T1 | T2 | T3 | T4 | T5 | T6>
-    export function sum<T1, T2, T3, T4, T5, T6, T7>(arbitrary1: [Arbitrary<T1>, Is<T1 | T2 | T3 | T4 | T5 | T6 | T7, T1>], arbitrary2: [Arbitrary<T2>, Is<T1 | T2 | T3 | T4 | T5 | T6 | T7, T2>], arbitrary3: [Arbitrary<T3>, Is<T1 | T2 | T3 | T4 | T5 | T6 | T7, T3>], arbitrary4: [Arbitrary<T4>, Is<T1 | T2 | T3 | T4 | T5 | T6 | T7, T4>], arbitrary5: [Arbitrary<T5>, Is<T1 | T2 | T3 | T4 | T5 | T6 | T7, T5>], arbitrary6: [Arbitrary<T6>, Is<T1 | T2 | T3 | T4 | T5 | T6 | T7, T6>], arbitrary7: [Arbitrary<T7>, Is<T1 | T2 | T3 | T4 | T5 | T6 | T7, T7>]): Arbitrary<T1 | T2 | T3 | T4 | T5 | T6 | T7>
-    export function sum<T1, T2, T3, T4, T5, T6, T7, T8>(arbitrary1: [Arbitrary<T1>, Is<T1 | T2 | T3 | T4 | T5 | T6 | T7 | T8, T1>], arbitrary2: [Arbitrary<T2>, Is<T1 | T2 | T3 | T4 | T5 | T6 | T7 | T8, T2>], arbitrary3: [Arbitrary<T3>, Is<T1 | T2 | T3 | T4 | T5 | T6 | T7 | T8, T3>], arbitrary4: [Arbitrary<T4>, Is<T1 | T2 | T3 | T4 | T5 | T6 | T7 | T8, T4>], arbitrary5: [Arbitrary<T5>, Is<T1 | T2 | T3 | T4 | T5 | T6 | T7 | T8, T5>], arbitrary6: [Arbitrary<T6>, Is<T1 | T2 | T3 | T4 | T5 | T6 | T7 | T8, T6>], arbitrary7: [Arbitrary<T7>, Is<T1 | T2 | T3 | T4 | T5 | T6 | T7 | T8, T7>], arbitrary8: [Arbitrary<T8>, Is<T1 | T2 | T3 | T4 | T5 | T6 | T7 | T8, T8>]): Arbitrary<T1 | T2 | T3 | T4 | T5 | T6 | T7 | T8>
-    export function sum<T>(arbitrary: [Arbitrary<T>, Is<T, T>], ...arbitraries: [Arbitrary<T>, Is<T, T>][]): Arbitrary<T>
-    export function sum<T>(arbitrary: [Arbitrary<T>, Is<T, T>], ...arbitraries: [Arbitrary<T>, Is<T, T>][]): Arbitrary<T> {
-        return new Sum(arbitrary, ...arbitraries)
+    export function sum<TArbs extends readonly DiscriminatedArbitrary<any, any>[]>(arbitraries: TArbs): Arbitrary<{ [k in keyof TArbs]: TArbs[k] extends DiscriminatedArbitrary<any, infer t> ? t : never }[number]> {
+        return new Sum(arbitraries)
     }
 }
