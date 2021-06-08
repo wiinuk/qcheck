@@ -8,3 +8,4 @@ src/
 test/
 tsconfig.json
 tsconfig.test.json
+README-generator.js
