@@ -322,7 +322,7 @@ export function tuple<TArbs extends Arbitrary<any>[]>(...arbitraries: TArbs): Ch
     return fromArbitrary(Arbitrary.tuple(arbitraries))
 }
 
-export function sum<TArbs extends DiscriminatedArbitrary<any, any>[]>(...arbitraries: TArbs): Checker<{ [k in keyof TArbs]: TArbs[k] extends DiscriminatedArbitrary<any, infer t> ? t : never }[number]> {
+export function sum<TArbs extends [DiscriminatedArbitrary<any, any>, ...DiscriminatedArbitrary<any, any>[]]>(...arbitraries: TArbs): Checker<{ [k in keyof TArbs]: TArbs[k] extends DiscriminatedArbitrary<any, infer t> ? t : never }[number]> {
     return fromArbitrary(Arbitrary.sum(arbitraries))
 }
 
