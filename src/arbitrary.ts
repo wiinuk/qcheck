@@ -17,12 +17,9 @@ export interface ArrayArbitraryOptions<Min extends number> {
     readonly min: Min
 }
 
-export interface ArbitraryCore<T> {
+export interface Arbitrary<T> {
     generate(random: Random, size: Int32): T
     shrink(value: T): Iterable<T>
-}
-export interface Arbitrary<T> extends ArbitraryCore<T> {
-    sample(options?: SampleOptions): T[]
 }
 
 export namespace Arbitrary {
@@ -44,14 +41,14 @@ export namespace Arbitrary {
         sample(options?: SampleOptions) { return sample(this, options) }
     }
     class Extend<T> extends ArbitraryDefaults<T> {
-        constructor(private readonly _arbitrary: ArbitraryCore<T>) { super() }
+        constructor(private readonly _arbitrary: Arbitrary<T>) { super() }
         generate(random: Random, size: Int32) { return this._arbitrary.generate(random, size) }
         shrink(value: T) { return this._arbitrary.shrink(value) }
     }
-    export function extend<T>(arbitrary: ArbitraryCore<T>): Arbitrary<T> {
+    export function extend<T>(arbitrary: Arbitrary<T>): Arbitrary<T> {
         return new Extend(arbitrary)
     }
-    export function sample<T>(arbitrary: ArbitraryCore<T>, { count = 100, initialSize = 0, delta = 2, seed = (Date.now() >>> 0) }: SampleOptions = {}) {
+    export function sample<T>(arbitrary: Arbitrary<T>, { count = 100, initialSize = 0, delta = 2, seed = (Date.now() >>> 0) }: SampleOptions = {}) {
         const xs: T[] = []
         const r = new Random(seed)
 
@@ -61,22 +58,22 @@ export namespace Arbitrary {
         return xs
     }
     class Map<T, U> extends ArbitraryDefaults<U> {
-        constructor(private readonly _arbitrary: ArbitraryCore<T>, private readonly _to: (x: T) => U, private readonly _from: (x: U) => T) { super() }
+        constructor(private readonly _arbitrary: Arbitrary<T>, private readonly _to: (x: T) => U, private readonly _from: (x: U) => T) { super() }
         generate(r: Random, n: Int32) { return this._to(this._arbitrary.generate(r, n)) }
         *shrink(value: U) {
             const to = this._to
             for (const v2 of this._arbitrary.shrink(this._from(value))) { yield to(v2) }
         }
     }
-    export function map<T, U>(arbitrary: ArbitraryCore<T>, convertTo: (x: T) => U, convertFrom: (x: U) => T): Arbitrary<U> {
+    export function map<T, U>(arbitrary: Arbitrary<T>, convertTo: (x: T) => U, convertFrom: (x: U) => T): Arbitrary<U> {
         return new Map(arbitrary, convertTo, convertFrom)
     }
-    export function mapExtend<T, U extends T>(arbitrary: ArbitraryCore<T>, convertTo: (x: T) => U): Arbitrary<U> {
+    export function mapExtend<T, U extends T>(arbitrary: Arbitrary<T>, convertTo: (x: T) => U): Arbitrary<U> {
         return new Map(arbitrary, convertTo, x => x)
     }
     class Filter<T> extends ArbitraryDefaults<T> {
         constructor(
-            private readonly _arbitrary: ArbitraryCore<T>,
+            private readonly _arbitrary: Arbitrary<T>,
             private readonly _predicate: (value: T) => boolean) { super() }
 
         generate(random: Random, size: Int32) {
@@ -93,7 +90,7 @@ export namespace Arbitrary {
             }
         }
     }
-    export function filter<T>(arbitrary: ArbitraryCore<T>, predicate: (value: T) => boolean): Arbitrary<T> {
+    export function filter<T>(arbitrary: Arbitrary<T>, predicate: (value: T) => boolean): Arbitrary<T> {
         return new Filter(arbitrary, predicate)
     }
 
@@ -197,7 +194,7 @@ export namespace Arbitrary {
     })
 
     class ArrayMinMaxArbitrary<T> extends ArbitraryDefaults<Array<T>> {
-        constructor(private readonly _arbitrary: ArbitraryCore<T>, private readonly _minLength: number) { super() }
+        constructor(private readonly _arbitrary: Arbitrary<T>, private readonly _minLength: number) { super() }
         generate(r: Random, size: number) {
             let xs: T[] = []
             const count = Math.max(this._minLength, r.range(0, size) | 0)
@@ -234,10 +231,10 @@ export namespace Arbitrary {
         }
     }
 
-    export function array<T>(arbitrary: ArbitraryCore<T>, options: ArrayArbitraryOptions<1>): Arbitrary<[T, ...T[]]>
-    export function array<T>(arbitrary: ArbitraryCore<T>, options: ArrayArbitraryOptions<2>): Arbitrary<[T, T, ...T[]]>
-    export function array<T>(arbitrary: ArbitraryCore<T>, options?: Partial<ArrayArbitraryOptions<number>>): Arbitrary<Array<T>>
-    export function array<T>(arbitrary: ArbitraryCore<T>, { min = 0 } = {}): Arbitrary<Array<T>> { return new ArrayMinMaxArbitrary(arbitrary, min) }
+    export function array<T>(arbitrary: Arbitrary<T>, options: ArrayArbitraryOptions<1>): Arbitrary<[T, ...T[]]>
+    export function array<T>(arbitrary: Arbitrary<T>, options: ArrayArbitraryOptions<2>): Arbitrary<[T, T, ...T[]]>
+    export function array<T>(arbitrary: Arbitrary<T>, options?: Partial<ArrayArbitraryOptions<number>>): Arbitrary<Array<T>>
+    export function array<T>(arbitrary: Arbitrary<T>, { min = 0 } = {}): Arbitrary<Array<T>> { return new ArrayMinMaxArbitrary(arbitrary, min) }
 
     const charArray = Arbitrary.array(Arbitrary.codePoint)
     export const string: Arbitrary<string> = extend({
@@ -250,7 +247,7 @@ export namespace Arbitrary {
     })
     class Interface<T> extends ArbitraryDefaults<T> {
         readonly _keys: (keyof T)[]
-        constructor(private readonly _arbitraryMap: {[P in keyof T]: ArbitraryCore<T[P]> }) {
+        constructor(private readonly _arbitraryMap: {[P in keyof T]: Arbitrary<T[P]> }) {
             super()
             this._keys = (Object.keys(_arbitraryMap) as (keyof T)[]).sort()
         }
@@ -268,14 +265,14 @@ export namespace Arbitrary {
             }
         }
     }
-    export function interface_<T>(arbitraryMap: {[P in keyof T]: ArbitraryCore<T[P]> }): Arbitrary<T> {
+    export function interface_<T>(arbitraryMap: {[P in keyof T]: Arbitrary<T[P]> }): Arbitrary<T> {
         return new Interface(arbitraryMap)
     }
 
     class Sum<T> extends ArbitraryDefaults<T> {
-        private readonly _arbitraries: [[ArbitraryCore<T>, Is<T, T>], ...[ArbitraryCore<T>, Is<T, T>][]]
+        private readonly _arbitraries: [[Arbitrary<T>, Is<T, T>], ...[Arbitrary<T>, Is<T, T>][]]
 
-        constructor(arbitrary: [ArbitraryCore<T>, Is<T, T>], ...arbitraries: [ArbitraryCore<T>, Is<T, T>][]) {
+        constructor(arbitrary: [Arbitrary<T>, Is<T, T>], ...arbitraries: [Arbitrary<T>, Is<T, T>][]) {
             super()
             this._arbitraries = [arbitrary]
             this._arbitraries.push(...arbitraries)
@@ -292,8 +289,8 @@ export namespace Arbitrary {
     }
 
     class Tuple<T> extends ArbitraryDefaults<T[]> {
-        private readonly _arbitraries: [ArbitraryCore<T>, ...ArbitraryCore<T>[]]
-        constructor(arbitrary1: ArbitraryCore<T>, ...arbitraries: ArbitraryCore<T>[]) {
+        private readonly _arbitraries: [Arbitrary<T>, ...Arbitrary<T>[]]
+        constructor(arbitrary1: Arbitrary<T>, ...arbitraries: Arbitrary<T>[]) {
             super()
             this._arbitraries = [arbitrary1]
             this._arbitraries.push(...arbitraries)
@@ -326,20 +323,20 @@ export namespace Arbitrary {
     //     (f ", " <| fun n -> sprintf "arbitrary%d: [ArbitraryCore<T%d>, Is<%s, T%d>]" n n t n)
     //     t
     // ```
-    export function tuple<T1>(arbitrary1: ArbitraryCore<T1>): Arbitrary<[T1]>
-    export function tuple<T1, T2>(arbitrary1: ArbitraryCore<T1>, arbitrary2: ArbitraryCore<T2>): Arbitrary<[T1, T2]>
-    export function tuple<T1, T2, T3>(arbitrary1: ArbitraryCore<T1>, arbitrary2: ArbitraryCore<T2>, arbitrary3: ArbitraryCore<T3>): Arbitrary<[T1, T2, T3]>
-    export function tuple<T1, T2, T3, T4>(arbitrary1: ArbitraryCore<T1>, arbitrary2: ArbitraryCore<T2>, arbitrary3: ArbitraryCore<T3>, arbitrary4: ArbitraryCore<T4>): Arbitrary<[T1, T2, T3, T4]>
-    export function tuple<T1, T2, T3, T4, T5>(arbitrary1: ArbitraryCore<T1>, arbitrary2: ArbitraryCore<T2>, arbitrary3: ArbitraryCore<T3>, arbitrary4: ArbitraryCore<T4>, arbitrary5: ArbitraryCore<T5>): Arbitrary<[T1, T2, T3, T4, T5]>
-    export function tuple<T1, T2, T3, T4, T5, T6>(arbitrary1: ArbitraryCore<T1>, arbitrary2: ArbitraryCore<T2>, arbitrary3: ArbitraryCore<T3>, arbitrary4: ArbitraryCore<T4>, arbitrary5: ArbitraryCore<T5>, arbitrary6: ArbitraryCore<T6>): Arbitrary<[T1, T2, T3, T4, T5, T6]>
-    export function tuple<T1, T2, T3, T4, T5, T6, T7>(arbitrary1: ArbitraryCore<T1>, arbitrary2: ArbitraryCore<T2>, arbitrary3: ArbitraryCore<T3>, arbitrary4: ArbitraryCore<T4>, arbitrary5: ArbitraryCore<T5>, arbitrary6: ArbitraryCore<T6>, arbitrary7: ArbitraryCore<T7>): Arbitrary<[T1, T2, T3, T4, T5, T6, T7]>
-    export function tuple<T1, T2, T3, T4, T5, T6, T7, T8>(arbitrary1: ArbitraryCore<T1>, arbitrary2: ArbitraryCore<T2>, arbitrary3: ArbitraryCore<T3>, arbitrary4: ArbitraryCore<T4>, arbitrary5: ArbitraryCore<T5>, arbitrary6: ArbitraryCore<T6>, arbitrary7: ArbitraryCore<T7>, arbitrary8: ArbitraryCore<T8>): Arbitrary<[T1, T2, T3, T4, T5, T6, T7, T8]>
-    export function tuple<T1, T2, T3, T4, T5, T6, T7, T8, T9>(arbitrary1: ArbitraryCore<T1>, arbitrary2: ArbitraryCore<T2>, arbitrary3: ArbitraryCore<T3>, arbitrary4: ArbitraryCore<T4>, arbitrary5: ArbitraryCore<T5>, arbitrary6: ArbitraryCore<T6>, arbitrary7: ArbitraryCore<T7>, arbitrary8: ArbitraryCore<T8>, arbitrary9: ArbitraryCore<T9>): Arbitrary<[T1, T2, T3, T4, T5, T6, T7, T8, T9]>
-    export function tuple<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>(arbitrary1: ArbitraryCore<T1>, arbitrary2: ArbitraryCore<T2>, arbitrary3: ArbitraryCore<T3>, arbitrary4: ArbitraryCore<T4>, arbitrary5: ArbitraryCore<T5>, arbitrary6: ArbitraryCore<T6>, arbitrary7: ArbitraryCore<T7>, arbitrary8: ArbitraryCore<T8>, arbitrary9: ArbitraryCore<T9>, arbitrary10: ArbitraryCore<T10>): Arbitrary<[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10]>
-    export function tuple<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11>(arbitrary1: ArbitraryCore<T1>, arbitrary2: ArbitraryCore<T2>, arbitrary3: ArbitraryCore<T3>, arbitrary4: ArbitraryCore<T4>, arbitrary5: ArbitraryCore<T5>, arbitrary6: ArbitraryCore<T6>, arbitrary7: ArbitraryCore<T7>, arbitrary8: ArbitraryCore<T8>, arbitrary9: ArbitraryCore<T9>, arbitrary10: ArbitraryCore<T10>, arbitrary11: ArbitraryCore<T11>): Arbitrary<[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11]>
-    export function tuple<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12>(arbitrary1: ArbitraryCore<T1>, arbitrary2: ArbitraryCore<T2>, arbitrary3: ArbitraryCore<T3>, arbitrary4: ArbitraryCore<T4>, arbitrary5: ArbitraryCore<T5>, arbitrary6: ArbitraryCore<T6>, arbitrary7: ArbitraryCore<T7>, arbitrary8: ArbitraryCore<T8>, arbitrary9: ArbitraryCore<T9>, arbitrary10: ArbitraryCore<T10>, arbitrary11: ArbitraryCore<T11>, arbitrary12: ArbitraryCore<T12>): Arbitrary<[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12]>
-    export function tuple<T>(arbitrary: ArbitraryCore<T>, ...arbitraries: ArbitraryCore<T>[]): Arbitrary<T[]>
-    export function tuple<T>(arbitrary: ArbitraryCore<T>, ...arbitraries: ArbitraryCore<T>[]): Arbitrary<T[]> {
+    export function tuple<T1>(arbitrary1: Arbitrary<T1>): Arbitrary<[T1]>
+    export function tuple<T1, T2>(arbitrary1: Arbitrary<T1>, arbitrary2: Arbitrary<T2>): Arbitrary<[T1, T2]>
+    export function tuple<T1, T2, T3>(arbitrary1: Arbitrary<T1>, arbitrary2: Arbitrary<T2>, arbitrary3: Arbitrary<T3>): Arbitrary<[T1, T2, T3]>
+    export function tuple<T1, T2, T3, T4>(arbitrary1: Arbitrary<T1>, arbitrary2: Arbitrary<T2>, arbitrary3: Arbitrary<T3>, arbitrary4: Arbitrary<T4>): Arbitrary<[T1, T2, T3, T4]>
+    export function tuple<T1, T2, T3, T4, T5>(arbitrary1: Arbitrary<T1>, arbitrary2: Arbitrary<T2>, arbitrary3: Arbitrary<T3>, arbitrary4: Arbitrary<T4>, arbitrary5: Arbitrary<T5>): Arbitrary<[T1, T2, T3, T4, T5]>
+    export function tuple<T1, T2, T3, T4, T5, T6>(arbitrary1: Arbitrary<T1>, arbitrary2: Arbitrary<T2>, arbitrary3: Arbitrary<T3>, arbitrary4: Arbitrary<T4>, arbitrary5: Arbitrary<T5>, arbitrary6: Arbitrary<T6>): Arbitrary<[T1, T2, T3, T4, T5, T6]>
+    export function tuple<T1, T2, T3, T4, T5, T6, T7>(arbitrary1: Arbitrary<T1>, arbitrary2: Arbitrary<T2>, arbitrary3: Arbitrary<T3>, arbitrary4: Arbitrary<T4>, arbitrary5: Arbitrary<T5>, arbitrary6: Arbitrary<T6>, arbitrary7: Arbitrary<T7>): Arbitrary<[T1, T2, T3, T4, T5, T6, T7]>
+    export function tuple<T1, T2, T3, T4, T5, T6, T7, T8>(arbitrary1: Arbitrary<T1>, arbitrary2: Arbitrary<T2>, arbitrary3: Arbitrary<T3>, arbitrary4: Arbitrary<T4>, arbitrary5: Arbitrary<T5>, arbitrary6: Arbitrary<T6>, arbitrary7: Arbitrary<T7>, arbitrary8: Arbitrary<T8>): Arbitrary<[T1, T2, T3, T4, T5, T6, T7, T8]>
+    export function tuple<T1, T2, T3, T4, T5, T6, T7, T8, T9>(arbitrary1: Arbitrary<T1>, arbitrary2: Arbitrary<T2>, arbitrary3: Arbitrary<T3>, arbitrary4: Arbitrary<T4>, arbitrary5: Arbitrary<T5>, arbitrary6: Arbitrary<T6>, arbitrary7: Arbitrary<T7>, arbitrary8: Arbitrary<T8>, arbitrary9: Arbitrary<T9>): Arbitrary<[T1, T2, T3, T4, T5, T6, T7, T8, T9]>
+    export function tuple<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>(arbitrary1: Arbitrary<T1>, arbitrary2: Arbitrary<T2>, arbitrary3: Arbitrary<T3>, arbitrary4: Arbitrary<T4>, arbitrary5: Arbitrary<T5>, arbitrary6: Arbitrary<T6>, arbitrary7: Arbitrary<T7>, arbitrary8: Arbitrary<T8>, arbitrary9: Arbitrary<T9>, arbitrary10: Arbitrary<T10>): Arbitrary<[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10]>
+    export function tuple<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11>(arbitrary1: Arbitrary<T1>, arbitrary2: Arbitrary<T2>, arbitrary3: Arbitrary<T3>, arbitrary4: Arbitrary<T4>, arbitrary5: Arbitrary<T5>, arbitrary6: Arbitrary<T6>, arbitrary7: Arbitrary<T7>, arbitrary8: Arbitrary<T8>, arbitrary9: Arbitrary<T9>, arbitrary10: Arbitrary<T10>, arbitrary11: Arbitrary<T11>): Arbitrary<[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11]>
+    export function tuple<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12>(arbitrary1: Arbitrary<T1>, arbitrary2: Arbitrary<T2>, arbitrary3: Arbitrary<T3>, arbitrary4: Arbitrary<T4>, arbitrary5: Arbitrary<T5>, arbitrary6: Arbitrary<T6>, arbitrary7: Arbitrary<T7>, arbitrary8: Arbitrary<T8>, arbitrary9: Arbitrary<T9>, arbitrary10: Arbitrary<T10>, arbitrary11: Arbitrary<T11>, arbitrary12: Arbitrary<T12>): Arbitrary<[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12]>
+    export function tuple<T>(arbitrary: Arbitrary<T>, ...arbitraries: Arbitrary<T>[]): Arbitrary<T[]>
+    export function tuple<T>(arbitrary: Arbitrary<T>, ...arbitraries: Arbitrary<T>[]): Arbitrary<T[]> {
         return new Tuple(arbitrary, ...arbitraries)
     }
 
@@ -353,16 +350,16 @@ export namespace Arbitrary {
     //     (f ", " <| fun n -> sprintf "arbitrary%d: [ArbitraryCore<T%d>, Is<%s, T%d>]" n n t n)
     //     t
     // ```
-    export function sum<T1, T2>(arbitrary1: [ArbitraryCore<T1>, Is<T1 | T2, T1>], arbitrary2: [ArbitraryCore<T2>, Is<T1 | T2, T2>]): Arbitrary<T1 | T2>
-    export function sum<T1, T2, T3>(arbitrary1: [ArbitraryCore<T1>, Is<T1 | T2 | T3, T1>], arbitrary2: [ArbitraryCore<T2>, Is<T1 | T2 | T3, T2>], arbitrary3: [ArbitraryCore<T3>, Is<T1 | T2 | T3, T3>]): Arbitrary<T1 | T2 | T3>
-    export function sum<T1, T2, T3, T4>(arbitrary1: [ArbitraryCore<T1>, Is<T1 | T2 | T3 | T4, T1>], arbitrary2: [ArbitraryCore<T2>, Is<T1 | T2 | T3 | T4, T2>], arbitrary3: [ArbitraryCore<T3>, Is<T1 | T2 | T3 | T4, T3>], arbitrary4: [ArbitraryCore<T4>, Is<T1 | T2 | T3 | T4, T4>]): Arbitrary<T1 | T2 | T3 | T4>
-    export function sum<T1, T2, T3, T4, T5>(arbitrary1: [ArbitraryCore<T1>, Is<T1 | T2 | T3 | T4 | T5, T1>], arbitrary2: [ArbitraryCore<T2>, Is<T1 | T2 | T3 | T4 |
-        T5, T2>], arbitrary3: [ArbitraryCore<T3>, Is<T1 | T2 | T3 | T4 | T5, T3>], arbitrary4: [ArbitraryCore<T4>, Is<T1 | T2 | T3 | T4 | T5, T4>], arbitrary5: [ArbitraryCore<T5>, Is<T1 | T2 | T3 | T4 | T5, T5>]): Arbitrary<T1 | T2 | T3 | T4 | T5>
-    export function sum<T1, T2, T3, T4, T5, T6>(arbitrary1: [ArbitraryCore<T1>, Is<T1 | T2 | T3 | T4 | T5 | T6, T1>], arbitrary2: [ArbitraryCore<T2>, Is<T1 | T2 | T3 | T4 | T5 | T6, T2>], arbitrary3: [ArbitraryCore<T3>, Is<T1 | T2 | T3 | T4 | T5 | T6, T3>], arbitrary4: [ArbitraryCore<T4>, Is<T1 | T2 | T3 | T4 | T5 | T6, T4>], arbitrary5: [ArbitraryCore<T5>, Is<T1 | T2 | T3 | T4 | T5 | T6, T5>], arbitrary6: [ArbitraryCore<T6>, Is<T1 | T2 | T3 | T4 | T5 | T6, T6>]): Arbitrary<T1 | T2 | T3 | T4 | T5 | T6>
-    export function sum<T1, T2, T3, T4, T5, T6, T7>(arbitrary1: [ArbitraryCore<T1>, Is<T1 | T2 | T3 | T4 | T5 | T6 | T7, T1>], arbitrary2: [ArbitraryCore<T2>, Is<T1 | T2 | T3 | T4 | T5 | T6 | T7, T2>], arbitrary3: [ArbitraryCore<T3>, Is<T1 | T2 | T3 | T4 | T5 | T6 | T7, T3>], arbitrary4: [ArbitraryCore<T4>, Is<T1 | T2 | T3 | T4 | T5 | T6 | T7, T4>], arbitrary5: [ArbitraryCore<T5>, Is<T1 | T2 | T3 | T4 | T5 | T6 | T7, T5>], arbitrary6: [ArbitraryCore<T6>, Is<T1 | T2 | T3 | T4 | T5 | T6 | T7, T6>], arbitrary7: [ArbitraryCore<T7>, Is<T1 | T2 | T3 | T4 | T5 | T6 | T7, T7>]): Arbitrary<T1 | T2 | T3 | T4 | T5 | T6 | T7>
-    export function sum<T1, T2, T3, T4, T5, T6, T7, T8>(arbitrary1: [ArbitraryCore<T1>, Is<T1 | T2 | T3 | T4 | T5 | T6 | T7 | T8, T1>], arbitrary2: [ArbitraryCore<T2>, Is<T1 | T2 | T3 | T4 | T5 | T6 | T7 | T8, T2>], arbitrary3: [ArbitraryCore<T3>, Is<T1 | T2 | T3 | T4 | T5 | T6 | T7 | T8, T3>], arbitrary4: [ArbitraryCore<T4>, Is<T1 | T2 | T3 | T4 | T5 | T6 | T7 | T8, T4>], arbitrary5: [ArbitraryCore<T5>, Is<T1 | T2 | T3 | T4 | T5 | T6 | T7 | T8, T5>], arbitrary6: [ArbitraryCore<T6>, Is<T1 | T2 | T3 | T4 | T5 | T6 | T7 | T8, T6>], arbitrary7: [ArbitraryCore<T7>, Is<T1 | T2 | T3 | T4 | T5 | T6 | T7 | T8, T7>], arbitrary8: [ArbitraryCore<T8>, Is<T1 | T2 | T3 | T4 | T5 | T6 | T7 | T8, T8>]): Arbitrary<T1 | T2 | T3 | T4 | T5 | T6 | T7 | T8>
-    export function sum<T>(arbitrary: [ArbitraryCore<T>, Is<T, T>], ...arbitraries: [ArbitraryCore<T>, Is<T, T>][]): Arbitrary<T>
-    export function sum<T>(arbitrary: [ArbitraryCore<T>, Is<T, T>], ...arbitraries: [ArbitraryCore<T>, Is<T, T>][]): Arbitrary<T> {
+    export function sum<T1, T2>(arbitrary1: [Arbitrary<T1>, Is<T1 | T2, T1>], arbitrary2: [Arbitrary<T2>, Is<T1 | T2, T2>]): Arbitrary<T1 | T2>
+    export function sum<T1, T2, T3>(arbitrary1: [Arbitrary<T1>, Is<T1 | T2 | T3, T1>], arbitrary2: [Arbitrary<T2>, Is<T1 | T2 | T3, T2>], arbitrary3: [Arbitrary<T3>, Is<T1 | T2 | T3, T3>]): Arbitrary<T1 | T2 | T3>
+    export function sum<T1, T2, T3, T4>(arbitrary1: [Arbitrary<T1>, Is<T1 | T2 | T3 | T4, T1>], arbitrary2: [Arbitrary<T2>, Is<T1 | T2 | T3 | T4, T2>], arbitrary3: [Arbitrary<T3>, Is<T1 | T2 | T3 | T4, T3>], arbitrary4: [Arbitrary<T4>, Is<T1 | T2 | T3 | T4, T4>]): Arbitrary<T1 | T2 | T3 | T4>
+    export function sum<T1, T2, T3, T4, T5>(arbitrary1: [Arbitrary<T1>, Is<T1 | T2 | T3 | T4 | T5, T1>], arbitrary2: [Arbitrary<T2>, Is<T1 | T2 | T3 | T4 |
+        T5, T2>], arbitrary3: [Arbitrary<T3>, Is<T1 | T2 | T3 | T4 | T5, T3>], arbitrary4: [Arbitrary<T4>, Is<T1 | T2 | T3 | T4 | T5, T4>], arbitrary5: [Arbitrary<T5>, Is<T1 | T2 | T3 | T4 | T5, T5>]): Arbitrary<T1 | T2 | T3 | T4 | T5>
+    export function sum<T1, T2, T3, T4, T5, T6>(arbitrary1: [Arbitrary<T1>, Is<T1 | T2 | T3 | T4 | T5 | T6, T1>], arbitrary2: [Arbitrary<T2>, Is<T1 | T2 | T3 | T4 | T5 | T6, T2>], arbitrary3: [Arbitrary<T3>, Is<T1 | T2 | T3 | T4 | T5 | T6, T3>], arbitrary4: [Arbitrary<T4>, Is<T1 | T2 | T3 | T4 | T5 | T6, T4>], arbitrary5: [Arbitrary<T5>, Is<T1 | T2 | T3 | T4 | T5 | T6, T5>], arbitrary6: [Arbitrary<T6>, Is<T1 | T2 | T3 | T4 | T5 | T6, T6>]): Arbitrary<T1 | T2 | T3 | T4 | T5 | T6>
+    export function sum<T1, T2, T3, T4, T5, T6, T7>(arbitrary1: [Arbitrary<T1>, Is<T1 | T2 | T3 | T4 | T5 | T6 | T7, T1>], arbitrary2: [Arbitrary<T2>, Is<T1 | T2 | T3 | T4 | T5 | T6 | T7, T2>], arbitrary3: [Arbitrary<T3>, Is<T1 | T2 | T3 | T4 | T5 | T6 | T7, T3>], arbitrary4: [Arbitrary<T4>, Is<T1 | T2 | T3 | T4 | T5 | T6 | T7, T4>], arbitrary5: [Arbitrary<T5>, Is<T1 | T2 | T3 | T4 | T5 | T6 | T7, T5>], arbitrary6: [Arbitrary<T6>, Is<T1 | T2 | T3 | T4 | T5 | T6 | T7, T6>], arbitrary7: [Arbitrary<T7>, Is<T1 | T2 | T3 | T4 | T5 | T6 | T7, T7>]): Arbitrary<T1 | T2 | T3 | T4 | T5 | T6 | T7>
+    export function sum<T1, T2, T3, T4, T5, T6, T7, T8>(arbitrary1: [Arbitrary<T1>, Is<T1 | T2 | T3 | T4 | T5 | T6 | T7 | T8, T1>], arbitrary2: [Arbitrary<T2>, Is<T1 | T2 | T3 | T4 | T5 | T6 | T7 | T8, T2>], arbitrary3: [Arbitrary<T3>, Is<T1 | T2 | T3 | T4 | T5 | T6 | T7 | T8, T3>], arbitrary4: [Arbitrary<T4>, Is<T1 | T2 | T3 | T4 | T5 | T6 | T7 | T8, T4>], arbitrary5: [Arbitrary<T5>, Is<T1 | T2 | T3 | T4 | T5 | T6 | T7 | T8, T5>], arbitrary6: [Arbitrary<T6>, Is<T1 | T2 | T3 | T4 | T5 | T6 | T7 | T8, T6>], arbitrary7: [Arbitrary<T7>, Is<T1 | T2 | T3 | T4 | T5 | T6 | T7 | T8, T7>], arbitrary8: [Arbitrary<T8>, Is<T1 | T2 | T3 | T4 | T5 | T6 | T7 | T8, T8>]): Arbitrary<T1 | T2 | T3 | T4 | T5 | T6 | T7 | T8>
+    export function sum<T>(arbitrary: [Arbitrary<T>, Is<T, T>], ...arbitraries: [Arbitrary<T>, Is<T, T>][]): Arbitrary<T>
+    export function sum<T>(arbitrary: [Arbitrary<T>, Is<T, T>], ...arbitraries: [Arbitrary<T>, Is<T, T>][]): Arbitrary<T> {
         return new Sum(arbitrary, ...arbitraries)
     }
 }

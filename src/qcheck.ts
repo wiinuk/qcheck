@@ -1,7 +1,7 @@
 // spell-checker: ignore arbitraries
 import { mixed, Nullable, Optional, primitive, Int32, CodePoint } from "wiinuk-extensions"
 import { seedOfNow, Random } from "./random"
-import { Is, ArbitraryCore, Arbitrary, SampleOptions, ArrayArbitraryOptions } from "./arbitrary"
+import { Is, Arbitrary, SampleOptions, ArrayArbitraryOptions } from "./arbitrary"
 
 export * from "./random"
 export * from "./arbitrary"
@@ -148,7 +148,7 @@ function currentSize(startSize: number, endSize: number, maxTest: number, index:
 
 interface State<T> {
     readonly seed: number
-    readonly arb: ArbitraryCore<T>
+    readonly arb: Arbitrary<T>
     readonly show: Show<T>
     readonly test: (value: T) => any
     readonly testCount: number
@@ -197,7 +197,7 @@ function findLocalMinFail<T>(state: State<T>, originalFail: T): TestResult<T> {
     return TestResult.testFailure({ shrinkCount, originalFail, minFail, seed, show, testCount })
 }
 
-function check<T>(arb: ArbitraryCore<T>, show: Show<T>, test: (value: T) => any, { seed = seedOfNow(), maxTest, startSize, endSize, runner = Runner.console } = Config.defaultValue) {
+function check<T>(arb: Arbitrary<T>, show: Show<T>, test: (value: T) => any, { seed = seedOfNow(), maxTest, startSize, endSize, runner = Runner.console } = Config.defaultValue) {
     const
         random = new Random(seed),
         minSize = Math.max(1, startSize),
@@ -218,6 +218,8 @@ function check<T>(arb: ArbitraryCore<T>, show: Show<T>, test: (value: T) => any,
 }
 
 export interface Checker<T> extends Arbitrary<T>, Show<T> {
+    sample(options?: SampleOptions): T[]
+
     check(test: (value: T) => any, config?: Config): TestResult<T>
     array(options: { readonly min: 1 }): Checker<[T, ...T[]]>
     array(options: { readonly min: 2 }): Checker<[T, T, ...T[]]>
@@ -236,7 +238,7 @@ export interface Checker<T> extends Arbitrary<T>, Show<T> {
 }
 
 class FromArbitrary<T> implements Checker<T> {
-    constructor(private readonly _arbitrary: ArbitraryCore<T>) {}
+    constructor(private readonly _arbitrary: Arbitrary<T>) {}
 
     sample(options?: SampleOptions) { return Arbitrary.sample(this._arbitrary, options) }
     generate(random: Random, size: Int32) { return this._arbitrary.generate(random, size) }
@@ -265,7 +267,7 @@ class FromArbitrary<T> implements Checker<T> {
     stringify(value: T): string { return Show.any.stringify(value) }
 }
 
-export function fromArbitrary<T>(arbitrary: ArbitraryCore<T>): Checker<T> {
+export function fromArbitrary<T>(arbitrary: Arbitrary<T>): Checker<T> {
     return new FromArbitrary(arbitrary)
 }
 
@@ -282,13 +284,13 @@ export const int32: Checker<Int32> = fromArbitrary(Arbitrary.int32)
 export const codePoint: Checker<CodePoint> = fromArbitrary(Arbitrary.codePoint)
 
 
-export function array<T>(arbitrary: ArbitraryCore<T>, options: ArrayArbitraryOptions<1>): Checker<[T, ...T[]]>
-export function array<T>(arbitrary: ArbitraryCore<T>, options: ArrayArbitraryOptions<2>): Checker<[T, T, ...T[]]>
-export function array<T>(arbitrary: ArbitraryCore<T>, options?: Partial<ArrayArbitraryOptions<number>>): Checker<T[]>
-export function array<T>(arbitrary: ArbitraryCore<T>, options?: Partial<ArrayArbitraryOptions<number>>) { return fromArbitrary(Arbitrary.array(arbitrary, options)) }
+export function array<T>(arbitrary: Arbitrary<T>, options: ArrayArbitraryOptions<1>): Checker<[T, ...T[]]>
+export function array<T>(arbitrary: Arbitrary<T>, options: ArrayArbitraryOptions<2>): Checker<[T, T, ...T[]]>
+export function array<T>(arbitrary: Arbitrary<T>, options?: Partial<ArrayArbitraryOptions<number>>): Checker<T[]>
+export function array<T>(arbitrary: Arbitrary<T>, options?: Partial<ArrayArbitraryOptions<number>>) { return fromArbitrary(Arbitrary.array(arbitrary, options)) }
 
 export const string = fromArbitrary(Arbitrary.string)
-export function interface_<T>(arbitraryMap: {[P in keyof T]: ArbitraryCore<T[P]> }) { return fromArbitrary(Arbitrary.interface_<T>(arbitraryMap)) }
+export function interface_<T>(arbitraryMap: {[P in keyof T]: Arbitrary<T[P]> }) { return fromArbitrary(Arbitrary.interface_<T>(arbitraryMap)) }
 
 // ```F#
 // for i in 1..12 do
@@ -299,20 +301,20 @@ export function interface_<T>(arbitraryMap: {[P in keyof T]: ArbitraryCore<T[P]>
 //         (f ", " <| fun n -> sprintf "arbitrary%d: Arbitrary<T%d>" n n)
 //         ts
 // ```
-export function tuple<T1>(arbitrary1: ArbitraryCore<T1>): Checker<[T1]>
-export function tuple<T1, T2>(arbitrary1: ArbitraryCore<T1>, arbitrary2: ArbitraryCore<T2>): Checker<[T1, T2]>
-export function tuple<T1, T2, T3>(arbitrary1: ArbitraryCore<T1>, arbitrary2: ArbitraryCore<T2>, arbitrary3: ArbitraryCore<T3>): Checker<[T1, T2, T3]>
-export function tuple<T1, T2, T3, T4>(arbitrary1: ArbitraryCore<T1>, arbitrary2: ArbitraryCore<T2>, arbitrary3: ArbitraryCore<T3>, arbitrary4: ArbitraryCore<T4>): Checker<[T1, T2, T3, T4]>
-export function tuple<T1, T2, T3, T4, T5>(arbitrary1: ArbitraryCore<T1>, arbitrary2: ArbitraryCore<T2>, arbitrary3: ArbitraryCore<T3>, arbitrary4: ArbitraryCore<T4>, arbitrary5: ArbitraryCore<T5>): Checker<[T1, T2, T3, T4, T5]>
-export function tuple<T1, T2, T3, T4, T5, T6>(arbitrary1: ArbitraryCore<T1>, arbitrary2: ArbitraryCore<T2>, arbitrary3: ArbitraryCore<T3>, arbitrary4: ArbitraryCore<T4>, arbitrary5: ArbitraryCore<T5>, arbitrary6: ArbitraryCore<T6>): Checker<[T1, T2, T3, T4, T5, T6]>
-export function tuple<T1, T2, T3, T4, T5, T6, T7>(arbitrary1: ArbitraryCore<T1>, arbitrary2: ArbitraryCore<T2>, arbitrary3: ArbitraryCore<T3>, arbitrary4: ArbitraryCore<T4>, arbitrary5: ArbitraryCore<T5>, arbitrary6: ArbitraryCore<T6>, arbitrary7: ArbitraryCore<T7>): Checker<[T1, T2, T3, T4, T5, T6, T7]>
-export function tuple<T1, T2, T3, T4, T5, T6, T7, T8>(arbitrary1: ArbitraryCore<T1>, arbitrary2: ArbitraryCore<T2>, arbitrary3: ArbitraryCore<T3>, arbitrary4: ArbitraryCore<T4>, arbitrary5: ArbitraryCore<T5>, arbitrary6: ArbitraryCore<T6>, arbitrary7: ArbitraryCore<T7>, arbitrary8: ArbitraryCore<T8>): Checker<[T1, T2, T3, T4, T5, T6, T7, T8]>
-export function tuple<T1, T2, T3, T4, T5, T6, T7, T8, T9>(arbitrary1: ArbitraryCore<T1>, arbitrary2: ArbitraryCore<T2>, arbitrary3: ArbitraryCore<T3>, arbitrary4: ArbitraryCore<T4>, arbitrary5: ArbitraryCore<T5>, arbitrary6: ArbitraryCore<T6>, arbitrary7: ArbitraryCore<T7>, arbitrary8: ArbitraryCore<T8>, arbitrary9: ArbitraryCore<T9>): Checker<[T1, T2, T3, T4, T5, T6, T7, T8, T9]>
-export function tuple<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>(arbitrary1: ArbitraryCore<T1>, arbitrary2: ArbitraryCore<T2>, arbitrary3: ArbitraryCore<T3>, arbitrary4: ArbitraryCore<T4>, arbitrary5: ArbitraryCore<T5>, arbitrary6: ArbitraryCore<T6>, arbitrary7: ArbitraryCore<T7>, arbitrary8: ArbitraryCore<T8>, arbitrary9: ArbitraryCore<T9>, arbitrary10: ArbitraryCore<T10>): Checker<[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10]>
-export function tuple<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11>(arbitrary1: ArbitraryCore<T1>, arbitrary2: ArbitraryCore<T2>, arbitrary3: ArbitraryCore<T3>, arbitrary4: ArbitraryCore<T4>, arbitrary5: ArbitraryCore<T5>, arbitrary6: ArbitraryCore<T6>, arbitrary7: ArbitraryCore<T7>, arbitrary8: ArbitraryCore<T8>, arbitrary9: ArbitraryCore<T9>, arbitrary10: ArbitraryCore<T10>, arbitrary11: ArbitraryCore<T11>): Checker<[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11]>
-export function tuple<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12>(arbitrary1: ArbitraryCore<T1>, arbitrary2: ArbitraryCore<T2>, arbitrary3: ArbitraryCore<T3>, arbitrary4: ArbitraryCore<T4>, arbitrary5: ArbitraryCore<T5>, arbitrary6: ArbitraryCore<T6>, arbitrary7: ArbitraryCore<T7>, arbitrary8: ArbitraryCore<T8>, arbitrary9: ArbitraryCore<T9>, arbitrary10: ArbitraryCore<T10>, arbitrary11: ArbitraryCore<T11>, arbitrary12: ArbitraryCore<T12>): Checker<[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12]>
-export function tuple<T>(arbitrary: ArbitraryCore<T>, ...arbitraries: ArbitraryCore<T>[]): Checker<T[]>
-export function tuple<T>(arbitrary: ArbitraryCore<T>, ...arbitraries: ArbitraryCore<T>[]): Checker<T[]> {
+export function tuple<T1>(arbitrary1: Arbitrary<T1>): Checker<[T1]>
+export function tuple<T1, T2>(arbitrary1: Arbitrary<T1>, arbitrary2: Arbitrary<T2>): Checker<[T1, T2]>
+export function tuple<T1, T2, T3>(arbitrary1: Arbitrary<T1>, arbitrary2: Arbitrary<T2>, arbitrary3: Arbitrary<T3>): Checker<[T1, T2, T3]>
+export function tuple<T1, T2, T3, T4>(arbitrary1: Arbitrary<T1>, arbitrary2: Arbitrary<T2>, arbitrary3: Arbitrary<T3>, arbitrary4: Arbitrary<T4>): Checker<[T1, T2, T3, T4]>
+export function tuple<T1, T2, T3, T4, T5>(arbitrary1: Arbitrary<T1>, arbitrary2: Arbitrary<T2>, arbitrary3: Arbitrary<T3>, arbitrary4: Arbitrary<T4>, arbitrary5: Arbitrary<T5>): Checker<[T1, T2, T3, T4, T5]>
+export function tuple<T1, T2, T3, T4, T5, T6>(arbitrary1: Arbitrary<T1>, arbitrary2: Arbitrary<T2>, arbitrary3: Arbitrary<T3>, arbitrary4: Arbitrary<T4>, arbitrary5: Arbitrary<T5>, arbitrary6: Arbitrary<T6>): Checker<[T1, T2, T3, T4, T5, T6]>
+export function tuple<T1, T2, T3, T4, T5, T6, T7>(arbitrary1: Arbitrary<T1>, arbitrary2: Arbitrary<T2>, arbitrary3: Arbitrary<T3>, arbitrary4: Arbitrary<T4>, arbitrary5: Arbitrary<T5>, arbitrary6: Arbitrary<T6>, arbitrary7: Arbitrary<T7>): Checker<[T1, T2, T3, T4, T5, T6, T7]>
+export function tuple<T1, T2, T3, T4, T5, T6, T7, T8>(arbitrary1: Arbitrary<T1>, arbitrary2: Arbitrary<T2>, arbitrary3: Arbitrary<T3>, arbitrary4: Arbitrary<T4>, arbitrary5: Arbitrary<T5>, arbitrary6: Arbitrary<T6>, arbitrary7: Arbitrary<T7>, arbitrary8: Arbitrary<T8>): Checker<[T1, T2, T3, T4, T5, T6, T7, T8]>
+export function tuple<T1, T2, T3, T4, T5, T6, T7, T8, T9>(arbitrary1: Arbitrary<T1>, arbitrary2: Arbitrary<T2>, arbitrary3: Arbitrary<T3>, arbitrary4: Arbitrary<T4>, arbitrary5: Arbitrary<T5>, arbitrary6: Arbitrary<T6>, arbitrary7: Arbitrary<T7>, arbitrary8: Arbitrary<T8>, arbitrary9: Arbitrary<T9>): Checker<[T1, T2, T3, T4, T5, T6, T7, T8, T9]>
+export function tuple<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10>(arbitrary1: Arbitrary<T1>, arbitrary2: Arbitrary<T2>, arbitrary3: Arbitrary<T3>, arbitrary4: Arbitrary<T4>, arbitrary5: Arbitrary<T5>, arbitrary6: Arbitrary<T6>, arbitrary7: Arbitrary<T7>, arbitrary8: Arbitrary<T8>, arbitrary9: Arbitrary<T9>, arbitrary10: Arbitrary<T10>): Checker<[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10]>
+export function tuple<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11>(arbitrary1: Arbitrary<T1>, arbitrary2: Arbitrary<T2>, arbitrary3: Arbitrary<T3>, arbitrary4: Arbitrary<T4>, arbitrary5: Arbitrary<T5>, arbitrary6: Arbitrary<T6>, arbitrary7: Arbitrary<T7>, arbitrary8: Arbitrary<T8>, arbitrary9: Arbitrary<T9>, arbitrary10: Arbitrary<T10>, arbitrary11: Arbitrary<T11>): Checker<[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11]>
+export function tuple<T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12>(arbitrary1: Arbitrary<T1>, arbitrary2: Arbitrary<T2>, arbitrary3: Arbitrary<T3>, arbitrary4: Arbitrary<T4>, arbitrary5: Arbitrary<T5>, arbitrary6: Arbitrary<T6>, arbitrary7: Arbitrary<T7>, arbitrary8: Arbitrary<T8>, arbitrary9: Arbitrary<T9>, arbitrary10: Arbitrary<T10>, arbitrary11: Arbitrary<T11>, arbitrary12: Arbitrary<T12>): Checker<[T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12]>
+export function tuple<T>(arbitrary: Arbitrary<T>, ...arbitraries: Arbitrary<T>[]): Checker<T[]>
+export function tuple<T>(arbitrary: Arbitrary<T>, ...arbitraries: Arbitrary<T>[]): Checker<T[]> {
     return fromArbitrary(Arbitrary.tuple(arbitrary, ...arbitraries))
 }
 
@@ -326,16 +328,16 @@ export function tuple<T>(arbitrary: ArbitraryCore<T>, ...arbitraries: ArbitraryC
 //     (f ", " <| fun n -> sprintf "arbitrary%d: [Arbitrary<T%d>, Is<%s, T%d>]" n n t n)
 //     t
 // ```
-export function sum<T1, T2>(arbitrary1: [ArbitraryCore<T1>, Is<T1 | T2, T1>], arbitrary2: [ArbitraryCore<T2>, Is<T1 | T2, T2>]): Checker<T1 | T2>
-export function sum<T1, T2, T3>(arbitrary1: [ArbitraryCore<T1>, Is<T1 | T2 | T3, T1>], arbitrary2: [ArbitraryCore<T2>, Is<T1 | T2 | T3, T2>], arbitrary3: [ArbitraryCore<T3>, Is<T1 | T2 | T3, T3>]): Checker<T1 | T2 | T3>
-export function sum<T1, T2, T3, T4>(arbitrary1: [ArbitraryCore<T1>, Is<T1 | T2 | T3 | T4, T1>], arbitrary2: [ArbitraryCore<T2>, Is<T1 | T2 | T3 | T4, T2>], arbitrary3: [ArbitraryCore<T3>, Is<T1 | T2 | T3 | T4, T3>], arbitrary4: [ArbitraryCore<T4>, Is<T1 | T2 | T3 | T4, T4>]): Checker<T1 | T2 | T3 | T4>
-export function sum<T1, T2, T3, T4, T5>(arbitrary1: [ArbitraryCore<T1>, Is<T1 | T2 | T3 | T4 | T5, T1>], arbitrary2: [ArbitraryCore<T2>, Is<T1 | T2 | T3 | T4 |
-    T5, T2>], arbitrary3: [ArbitraryCore<T3>, Is<T1 | T2 | T3 | T4 | T5, T3>], arbitrary4: [ArbitraryCore<T4>, Is<T1 | T2 | T3 | T4 | T5, T4>], arbitrary5: [ArbitraryCore<T5>, Is<T1 | T2 | T3 | T4 | T5, T5>]): Checker<T1 | T2 | T3 | T4 | T5>
-export function sum<T1, T2, T3, T4, T5, T6>(arbitrary1: [ArbitraryCore<T1>, Is<T1 | T2 | T3 | T4 | T5 | T6, T1>], arbitrary2: [ArbitraryCore<T2>, Is<T1 | T2 | T3 | T4 | T5 | T6, T2>], arbitrary3: [ArbitraryCore<T3>, Is<T1 | T2 | T3 | T4 | T5 | T6, T3>], arbitrary4: [ArbitraryCore<T4>, Is<T1 | T2 | T3 | T4 | T5 | T6, T4>], arbitrary5: [ArbitraryCore<T5>, Is<T1 | T2 | T3 | T4 | T5 | T6, T5>], arbitrary6: [ArbitraryCore<T6>, Is<T1 | T2 | T3 | T4 | T5 | T6, T6>]): Checker<T1 | T2 | T3 | T4 | T5 | T6>
-export function sum<T1, T2, T3, T4, T5, T6, T7>(arbitrary1: [ArbitraryCore<T1>, Is<T1 | T2 | T3 | T4 | T5 | T6 | T7, T1>], arbitrary2: [ArbitraryCore<T2>, Is<T1 | T2 | T3 | T4 | T5 | T6 | T7, T2>], arbitrary3: [ArbitraryCore<T3>, Is<T1 | T2 | T3 | T4 | T5 | T6 | T7, T3>], arbitrary4: [ArbitraryCore<T4>, Is<T1 | T2 | T3 | T4 | T5 | T6 | T7, T4>], arbitrary5: [ArbitraryCore<T5>, Is<T1 | T2 | T3 | T4 | T5 | T6 | T7, T5>], arbitrary6: [ArbitraryCore<T6>, Is<T1 | T2 | T3 | T4 | T5 | T6 | T7, T6>], arbitrary7: [ArbitraryCore<T7>, Is<T1 | T2 | T3 | T4 | T5 | T6 | T7, T7>]): Checker<T1 | T2 | T3 | T4 | T5 | T6 | T7>
-export function sum<T1, T2, T3, T4, T5, T6, T7, T8>(arbitrary1: [ArbitraryCore<T1>, Is<T1 | T2 | T3 | T4 | T5 | T6 | T7 | T8, T1>], arbitrary2: [ArbitraryCore<T2>, Is<T1 | T2 | T3 | T4 | T5 | T6 | T7 | T8, T2>], arbitrary3: [ArbitraryCore<T3>, Is<T1 | T2 | T3 | T4 | T5 | T6 | T7 | T8, T3>], arbitrary4: [ArbitraryCore<T4>, Is<T1 | T2 | T3 | T4 | T5 | T6 | T7 | T8, T4>], arbitrary5: [ArbitraryCore<T5>, Is<T1 | T2 | T3 | T4 | T5 | T6 | T7 | T8, T5>], arbitrary6: [ArbitraryCore<T6>, Is<T1 | T2 | T3 | T4 | T5 | T6 | T7 | T8, T6>], arbitrary7: [ArbitraryCore<T7>, Is<T1 | T2 | T3 | T4 | T5 | T6 | T7 | T8, T7>], arbitrary8: [ArbitraryCore<T8>, Is<T1 | T2 | T3 | T4 | T5 | T6 | T7 | T8, T8>]): Checker<T1 | T2 | T3 | T4 | T5 | T6 | T7 | T8>
-export function sum<T>(arbitrary: [ArbitraryCore<T>, Is<T, T>], ...arbitraries: [ArbitraryCore<T>, Is<T, T>][]): Checker<T>
-export function sum<T>(arbitrary: [ArbitraryCore<T>, Is<T, T>], ...arbitraries: [ArbitraryCore<T>, Is<T, T>][]) {
+export function sum<T1, T2>(arbitrary1: [Arbitrary<T1>, Is<T1 | T2, T1>], arbitrary2: [Arbitrary<T2>, Is<T1 | T2, T2>]): Checker<T1 | T2>
+export function sum<T1, T2, T3>(arbitrary1: [Arbitrary<T1>, Is<T1 | T2 | T3, T1>], arbitrary2: [Arbitrary<T2>, Is<T1 | T2 | T3, T2>], arbitrary3: [Arbitrary<T3>, Is<T1 | T2 | T3, T3>]): Checker<T1 | T2 | T3>
+export function sum<T1, T2, T3, T4>(arbitrary1: [Arbitrary<T1>, Is<T1 | T2 | T3 | T4, T1>], arbitrary2: [Arbitrary<T2>, Is<T1 | T2 | T3 | T4, T2>], arbitrary3: [Arbitrary<T3>, Is<T1 | T2 | T3 | T4, T3>], arbitrary4: [Arbitrary<T4>, Is<T1 | T2 | T3 | T4, T4>]): Checker<T1 | T2 | T3 | T4>
+export function sum<T1, T2, T3, T4, T5>(arbitrary1: [Arbitrary<T1>, Is<T1 | T2 | T3 | T4 | T5, T1>], arbitrary2: [Arbitrary<T2>, Is<T1 | T2 | T3 | T4 |
+    T5, T2>], arbitrary3: [Arbitrary<T3>, Is<T1 | T2 | T3 | T4 | T5, T3>], arbitrary4: [Arbitrary<T4>, Is<T1 | T2 | T3 | T4 | T5, T4>], arbitrary5: [Arbitrary<T5>, Is<T1 | T2 | T3 | T4 | T5, T5>]): Checker<T1 | T2 | T3 | T4 | T5>
+export function sum<T1, T2, T3, T4, T5, T6>(arbitrary1: [Arbitrary<T1>, Is<T1 | T2 | T3 | T4 | T5 | T6, T1>], arbitrary2: [Arbitrary<T2>, Is<T1 | T2 | T3 | T4 | T5 | T6, T2>], arbitrary3: [Arbitrary<T3>, Is<T1 | T2 | T3 | T4 | T5 | T6, T3>], arbitrary4: [Arbitrary<T4>, Is<T1 | T2 | T3 | T4 | T5 | T6, T4>], arbitrary5: [Arbitrary<T5>, Is<T1 | T2 | T3 | T4 | T5 | T6, T5>], arbitrary6: [Arbitrary<T6>, Is<T1 | T2 | T3 | T4 | T5 | T6, T6>]): Checker<T1 | T2 | T3 | T4 | T5 | T6>
+export function sum<T1, T2, T3, T4, T5, T6, T7>(arbitrary1: [Arbitrary<T1>, Is<T1 | T2 | T3 | T4 | T5 | T6 | T7, T1>], arbitrary2: [Arbitrary<T2>, Is<T1 | T2 | T3 | T4 | T5 | T6 | T7, T2>], arbitrary3: [Arbitrary<T3>, Is<T1 | T2 | T3 | T4 | T5 | T6 | T7, T3>], arbitrary4: [Arbitrary<T4>, Is<T1 | T2 | T3 | T4 | T5 | T6 | T7, T4>], arbitrary5: [Arbitrary<T5>, Is<T1 | T2 | T3 | T4 | T5 | T6 | T7, T5>], arbitrary6: [Arbitrary<T6>, Is<T1 | T2 | T3 | T4 | T5 | T6 | T7, T6>], arbitrary7: [Arbitrary<T7>, Is<T1 | T2 | T3 | T4 | T5 | T6 | T7, T7>]): Checker<T1 | T2 | T3 | T4 | T5 | T6 | T7>
+export function sum<T1, T2, T3, T4, T5, T6, T7, T8>(arbitrary1: [Arbitrary<T1>, Is<T1 | T2 | T3 | T4 | T5 | T6 | T7 | T8, T1>], arbitrary2: [Arbitrary<T2>, Is<T1 | T2 | T3 | T4 | T5 | T6 | T7 | T8, T2>], arbitrary3: [Arbitrary<T3>, Is<T1 | T2 | T3 | T4 | T5 | T6 | T7 | T8, T3>], arbitrary4: [Arbitrary<T4>, Is<T1 | T2 | T3 | T4 | T5 | T6 | T7 | T8, T4>], arbitrary5: [Arbitrary<T5>, Is<T1 | T2 | T3 | T4 | T5 | T6 | T7 | T8, T5>], arbitrary6: [Arbitrary<T6>, Is<T1 | T2 | T3 | T4 | T5 | T6 | T7 | T8, T6>], arbitrary7: [Arbitrary<T7>, Is<T1 | T2 | T3 | T4 | T5 | T6 | T7 | T8, T7>], arbitrary8: [Arbitrary<T8>, Is<T1 | T2 | T3 | T4 | T5 | T6 | T7 | T8, T8>]): Checker<T1 | T2 | T3 | T4 | T5 | T6 | T7 | T8>
+export function sum<T>(arbitrary: [Arbitrary<T>, Is<T, T>], ...arbitraries: [Arbitrary<T>, Is<T, T>][]): Checker<T>
+export function sum<T>(arbitrary: [Arbitrary<T>, Is<T, T>], ...arbitraries: [Arbitrary<T>, Is<T, T>][]) {
     return fromArbitrary(Arbitrary.sum(arbitrary, ...arbitraries))
 }
 
