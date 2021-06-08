@@ -2,6 +2,7 @@ import "mocha"
 import { assert } from "chai"
 import { Random, int32, Runner, Config, string, interface_ as object, Arbitrary, codePoint } from "../src/qcheck"
 import { String, CodePoint, Iterable, Int32 } from "wiinuk-extensions"
+import { pure, sum } from "../src/qcheck"
 
 describe("Random", () => {
     it("nextUInt32", () => {
@@ -129,7 +130,7 @@ function ltString(l: string, r: string) {
         )
 }
 
-describe("arbitrary", () => {
+describe("checker", () => {
     it("CodePoint", () => {
         for (const x of codePoint.sample({ count: 100, delta: 1 })) {
             assertIsCodePoint(x)
@@ -167,5 +168,20 @@ describe("arbitrary", () => {
                 )
             }
         }
+    })
+    it(`"a" | 42`, () => {
+        const toArray = global.Array.from
+        const checker = sum(pure("a"), pure(42))
+        assert.deepEqual(
+            toArray(checker.shrink("a")),
+            []
+        )
+        assert.deepEqual(
+            toArray(checker.shrink(42)),
+            []
+        )
+        checker
+            .sample({ count: 100 })
+            .forEach(x => assert.deepOwnInclude(["a", 42], x))
     })
 })
