@@ -271,7 +271,7 @@ export namespace Arbitrary {
     }
 
     class Sum<T> implements Arbitrary<T> {
-        constructor(private readonly _arbitraries: readonly DiscriminatedArbitrary<T, T>[]) {}
+        constructor(private readonly _arbitraries: readonly [DiscriminatedArbitrary<T, T>, ...DiscriminatedArbitrary<T, T>[]]) {}
         generate(r: Random, size: number) {
             const arbs = this._arbitraries
             return arbs[(r.next() * arbs.length) | 0].generate(r, size)
@@ -308,7 +308,7 @@ export namespace Arbitrary {
         return new Tuple<targetTuple[number]>(arbitraries) as Arbitrary<any[]> as Arbitrary<targetTuple>
     }
 
-    export function sum<TArbs extends readonly DiscriminatedArbitrary<any, any>[]>(arbitraries: TArbs): Arbitrary<{ [k in keyof TArbs]: TArbs[k] extends DiscriminatedArbitrary<any, infer t> ? t : never }[number]> {
+    export function sum<TArbs extends readonly [DiscriminatedArbitrary<any, any>, ...DiscriminatedArbitrary<any, any>[]]>(arbitraries: TArbs): Arbitrary<{ [k in keyof TArbs]: TArbs[k] extends DiscriminatedArbitrary<any, infer t> ? t : never }[number]> {
         return new Sum(arbitraries)
     }
 }
