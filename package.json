@@ -3,7 +3,7 @@
   "description": "qcheck is a library to support testing by generating random test cases.",
   "author": "wiinuk",
   "license": "SEE LICENSE IN LICENSE",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "repository": {
     "type": "git",
     "url": "git+ssh://git@github.com/wiinuk/qcheck.git"
