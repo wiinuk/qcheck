@@ -72,7 +72,7 @@ export interface TestFailure<T> extends TestFailureArgs<T> {
     readonly type: "Failure"
 }
 export interface TestFailureWithExceptionArgs<T> extends TestFailureArgs<T> {
-    readonly error: any
+    readonly error: unknown
 }
 export interface TestFailureWithException<T> extends TestFailureWithExceptionArgs<T> {
     readonly type: "Exception"

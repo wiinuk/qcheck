@@ -38,9 +38,12 @@ describe("Random", () => {
 })
 
 describe("runner", () => {
-    let buffer: string[] = []
-    const bufferedRunner = Runner.fromFunction(m => buffer.push(m))
-    const bufferedConfig = { ...Config.defaultValue, runner: bufferedRunner }
+    const makeBufferedConfig = () => {
+        let buffer: string[] = []
+        const bufferedRunner = Runner.fromFunction(m => buffer.push(m))
+        const bufferedConfig = { ...Config.defaultValue, runner: bufferedRunner }
+        return [buffer, bufferedConfig] as const
+    }
 
     it("int32", () => {
         const expected = `0: 0
@@ -82,14 +85,25 @@ Falsifiable, after 20 tests (7 shrink) (seed: 1873066016):
 Original: 18
 Shrunk: 11`
 
-        buffer = []
-        int32.check(x => { if (10 < x) { throw new Error("err") } }, { ...bufferedConfig, seed: 1873066016 })
+        const [buffer, config] = makeBufferedConfig()
+        int32.check(x => { if (10 < x) { throw new Error("err") } }, { ...config, seed: 1873066016 })
         assert.deepEqual(buffer, expected.split(/\r?\n/))
     })
     it("default runner is throwOnFailure", () => {
         assert.throws(() => {
             string.check(() => { throw new Error("err") })
         })
+    })
+    it("runner with printer", () => {
+        const expected = `0: 0x0
+Falsifiable, after 1 tests (0 shrink) (seed: 123456):
+Original: 0x0
+Shrunk: 0x0`
+        const [buffer, config] = makeBufferedConfig()
+        int32
+            .withPrinter(x => `0x${x.toString(16)}`)
+            .check(() => { throw new Error("err") }, { ...config, seed: 123456 })
+        assert.deepEqual(buffer, expected.split(/\r?\n/))
     })
 })
 
