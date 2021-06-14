@@ -256,11 +256,16 @@ export interface Checker<T> extends Arbitrary<T>, Show<T> {
 
     nullable<A extends {} | undefined>(this: Checker<A>): Checker<Nullable<A>>
     optional<A extends {} | null>(this: Checker<A>): Checker<Optional<A>>
+
+    withPrinter(stringify: (value: T) => string): Checker<T>
 }
 export interface DiscriminatedChecker<TOverall, T extends TOverall> extends Checker<T>, Discriminator<TOverall, T> {}
 
 class FromArbitrary<T, TArbitrary extends Arbitrary<T>> implements Checker<T> {
-    constructor(private readonly _arbitrary: TArbitrary) {}
+    constructor(
+        private readonly _arbitrary: TArbitrary,
+        private readonly _stringify: (value: T) => string = Show.any.stringify,
+    ) {}
 
     sample(options?: SampleOptions) { return Arbitrary.sample(this._arbitrary, options) }
     generate(random: Random, size: Int32) { return this._arbitrary.generate(random, size) }
@@ -286,7 +291,8 @@ class FromArbitrary<T, TArbitrary extends Arbitrary<T>> implements Checker<T> {
     nullable<A extends {} | undefined>(this: Arbitrary<A>): Checker<Nullable<A>> { return fromArbitrary(Arbitrary.nullable(this)) }
     optional<A extends {} | null>(this: Arbitrary<A>): Checker<Optional<A>> { return fromArbitrary(Arbitrary.optional(this)) }
 
-    stringify(value: T): string { return Show.any.stringify(value) }
+    stringify(value: T): string { return this._stringify(value) }
+    withPrinter(stringify: (value: T) => string) { return new FromArbitrary(this._arbitrary, stringify) }
 
     is<TOverall, U extends TOverall>(this: FromArbitrary<U, DiscriminatedArbitrary<TOverall, U>>, value: TOverall): value is U {
         return this._arbitrary.is(value)
@@ -356,6 +362,7 @@ class ForwardDeclarationCheckerImpl<T> implements ForwardDeclarationChecker<T> {
     generate() { return throwNotInitialized() }
     shrink() { return throwNotInitialized() }
     stringify() { return throwNotInitialized() }
+    withPrinter() { return throwNotInitialized() }
 }
 
 export function forwardDeclaration<T>(): ForwardDeclarationChecker<T> {
